@@ -1,0 +1,16 @@
+import type { NextRequest } from "next/server";
+
+import {
+  handleContactsGet,
+  handleContactsPost,
+} from "@/server/services/document-center-service";
+
+export const runtime = "nodejs";
+
+export async function GET(request: NextRequest) {
+  return handleContactsGet(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handleContactsPost(request);
+}
