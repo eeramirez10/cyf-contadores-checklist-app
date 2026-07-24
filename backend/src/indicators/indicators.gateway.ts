@@ -8,7 +8,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import type { DefaultEventsMap, Server, Socket } from 'socket.io';
+import type { DefaultEventsMap, Namespace, Server, Socket } from 'socket.io';
 import { AuthService } from '../auth/auth.service';
 import { PermissionsService } from '../permissions/permissions.service';
 
@@ -47,8 +47,10 @@ export class IndicatorsGateway implements OnGatewayConnection {
 
   private readonly cors: { origin: string[]; credentials: boolean };
 
-  afterInit(server: Server): void {
-    server.engine.opts.cors = this.cors;
+  afterInit(server: Server | Namespace): void {
+    // A namespaced Nest gateway receives a Namespace, which exposes the root IO server.
+    const rootServer = 'engine' in server ? server : server.server;
+    rootServer.engine.opts.cors = this.cors;
   }
 
   async handleConnection(client: IndicatorsSocket) {
