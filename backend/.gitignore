@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build and test artifacts
+dist/
+coverage/
+*.tsbuildinfo
+
+# Local environment configuration
+.env*
+!.env.example
+
+# Logs and operating-system files
+*.log
+.DS_Store
+
+# Nest CLI cache
+.nestjs/
