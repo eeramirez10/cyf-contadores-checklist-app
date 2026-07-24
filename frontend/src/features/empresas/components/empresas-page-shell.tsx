@@ -9,17 +9,6 @@ type EmpresasPageShellProps = {
 };
 
 export function EmpresasPageShell({ state, children }: EmpresasPageShellProps) {
-  if (!state.supabase) {
-    return (
-      <article className="surface rounded-3xl p-6">
-        <h2 className="display-title text-2xl font-semibold">Falta configuracion de Supabase</h2>
-        <p className="mt-2 text-sm text-[var(--foreground-soft)]">
-          Agrega `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` en `.env.local`.
-        </p>
-      </article>
-    );
-  }
-
   if (state.authLoading) {
     return (
       <article className="surface rounded-3xl p-6 text-sm text-[var(--foreground-soft)]">
@@ -41,7 +30,7 @@ export function EmpresasPageShell({ state, children }: EmpresasPageShellProps) {
       <article className="surface rounded-3xl p-6">
         <h2 className="display-title text-2xl font-semibold">Perfil sin permisos</h2>
         <p className="mt-2 text-sm text-[var(--foreground-soft)]">
-          Tu usuario esta autenticado pero no tiene fila en `profiles`. Revisa el trigger de alta o asigna rol manualmente.
+          Tu usuario local esta autenticado, pero no tiene un perfil disponible para el panel.
         </p>
         <button
           type="button"

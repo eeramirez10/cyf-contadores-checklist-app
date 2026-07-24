@@ -9,6 +9,9 @@ import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
 import { ChecklistModule } from './checklist/checklist.module';
 import { IndicatorsModule } from './indicators/indicators.module';
+import { CatalogModule } from './catalog/catalog.module';
+import { CompaniesModule } from './companies/companies.module';
+import { TemplatesModule } from './templates/templates.module';
 
 @Module({
   imports: [
@@ -53,6 +56,9 @@ import { IndicatorsModule } from './indicators/indicators.module';
     UsersModule,
     ChecklistModule,
     IndicatorsModule,
+    CatalogModule,
+    CompaniesModule,
+    TemplatesModule,
   ],
 })
 export class AppModule {}

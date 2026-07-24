@@ -32,6 +32,32 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return payload;
 }
 
+export async function backendFetch<T>(
+  path: string,
+  init: RequestInit = {},
+  retryAfterRefresh = true,
+): Promise<T> {
+  if (!accessToken) {
+    throw new Error("La sesion no esta inicializada.");
+  }
+
+  const response = await fetch(apiUrl(path), {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...init.headers,
+    },
+    credentials: "include",
+  });
+
+  if (response.status === 401 && retryAfterRefresh) {
+    await requestAccessToken("/auth/refresh");
+    return backendFetch<T>(path, init, false);
+  }
+
+  return parseResponse<T>(response);
+}
+
 async function requestAccessToken(
   path: "/auth/login" | "/auth/refresh",
   body?: { email: string; password: string },

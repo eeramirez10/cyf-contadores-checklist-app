@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useAuth } from "@/features/auth/components/auth-provider";
 import { getBackendAccessToken } from "@/lib/backend-auth";
@@ -17,26 +17,26 @@ export function UsersManagementPage() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("MEMBER");
 
-  const request = async (path: string, init?: RequestInit) => {
+  const request = useCallback(async (path: string, init?: RequestInit) => {
     const token = getBackendAccessToken();
     const response = await fetch(`${env.apiUrl}${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...init?.headers } });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error((payload as { message?: string }).message ?? "No se pudo completar la solicitud.");
     return payload;
-  };
+  }, []);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (status !== "authenticated" || user?.role !== "ADMIN") return;
     setLoading(true);
     try { const data = await request("/admin/users"); setUsers((data as { users: ManagedUser[] }).users); }
     catch (error) { toast.error(error instanceof Error ? error.message : "No se pudo cargar usuarios."); }
     finally { setLoading(false); }
-  };
+  }, [request, status, user?.role]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
-  }, [status, user?.role]);
+  }, [load]);
 
   const createUser = async (event: React.FormEvent) => {
     event.preventDefault();

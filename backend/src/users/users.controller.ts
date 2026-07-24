@@ -14,6 +14,10 @@ type UserRequest = Request & { user: { role: string } };
 @Controller({ path: 'admin/users', version: '1' })
 export class UsersController {
   constructor(private readonly users: UsersService) {}
-  @Get() list(@Req() request: UserRequest) { return this.users.listAdminCatalog(request.user.role); }
-  @Post() create(@Body() dto: CreateUserDto, @Req() request: UserRequest) { return this.users.createAdminUser(request.user.role, dto); }
+  @Get() list(@Req() request: UserRequest) {
+    return this.users.listAdminCatalog(request.user.role);
+  }
+  @Post() create(@Body() dto: CreateUserDto, @Req() request: UserRequest) {
+    return this.users.createAdminUser(request.user.role, dto);
+  }
 }

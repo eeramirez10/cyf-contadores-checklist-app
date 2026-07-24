@@ -1,8 +1,4 @@
 import type {
-  RealtimePostgresChangesPayload,
-  SupabaseClient,
-} from "@supabase/supabase-js";
-import type {
   ActivityTemplate,
   ChecklistEntry,
   Client,
@@ -72,27 +68,3 @@ export const normalizeChecklist = (row: DbChecklistRow): ChecklistEntry => ({
   updatedAt: row.updated_at,
   completedBy: row.completed_by,
 });
-
-export const convertRealtimeChecklist = (value: Record<string, unknown>): ChecklistEntry => {
-  return normalizeChecklist({
-    id: String(value.id),
-    month: String(value.month),
-    client_id: String(value.client_id),
-    template_id: String(value.template_id),
-    completed: Boolean(value.completed),
-    completed_at: value.completed_at ? String(value.completed_at) : null,
-    updated_at: String(value.updated_at ?? new Date().toISOString()),
-    completed_by: value.completed_by ? String(value.completed_by) : null,
-  });
-};
-
-export const subscribeChecklistRealtime = (
-  supabase: SupabaseClient,
-  onChange: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void,
-) => {
-  const channel = supabase
-    .channel("checklist-live")
-    .on("postgres_changes", { event: "*", schema: "public", table: "checklist_entries" }, onChange)
-    .subscribe();
-  return channel;
-};

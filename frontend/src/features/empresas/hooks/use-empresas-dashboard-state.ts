@@ -2,17 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { Session } from "@supabase/supabase-js";
 import { toast } from "react-toastify";
 import {
-  convertRealtimeChecklist,
   normalizeChecklist,
   normalizeClient,
   normalizeClientActivity,
   normalizeGroup,
   normalizeTemplate,
   normalizeUser,
-  subscribeChecklistRealtime,
 } from "@/features/empresas/services/empresas-mappers";
 import type {
   DbChecklistRow,
@@ -28,8 +25,9 @@ import {
   entryKey,
   paginateItems,
 } from "@/features/empresas/utils/empresas-helpers";
+import { backendFetch } from "@/lib/backend-auth";
 import { calculateProgress } from "@/lib/progress";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { useAuth } from "@/features/auth/components/auth-provider";
 import type {
   ActivityTemplate,
   Area,
@@ -52,13 +50,26 @@ type ClientTableSortKey =
 
 type SortDirection = "asc" | "desc";
 
+type DashboardCatalog = {
+  profiles: DbProfileRow[];
+  groups: DbGroupRow[];
+  templates: DbTemplateRow[];
+  clients: DbClientRow[];
+  activities: DbClientActivityRow[];
+  entries: DbChecklistRow[];
+};
+
 export function useEmpresasDashboardState() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const supabase = useMemo(() => getSupabaseBrowserClient(), []);
-  const [session, setSession] = useState<Session | null>(null);
-  const [authLoading, setAuthLoading] = useState<boolean>(() => Boolean(supabase));
+  const {
+    user: backendUser,
+    status: backendAuthStatus,
+    signOut: signOutFromBackend,
+  } = useAuth();
+  const authLoading = backendAuthStatus === "loading";
+  const session = backendUser;
 
   const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -92,7 +103,7 @@ export function useEmpresasDashboardState() {
   const [clientsSortDirection, setClientsSortDirection] = useState<SortDirection>("asc");
   const [checklistModalClientId, setChecklistModalClientId] = useState<string | null>(null);
 
-  const currentUser = users.find((item) => item.id === session?.user.id) ?? null;
+  const currentUser = users.find((item) => item.id === backendUser?.id) ?? null;
 
   const usersById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users]);
   const groupsById = useMemo(() => new Map(groups.map((group) => [group.id, group])), [groups]);
@@ -117,153 +128,41 @@ export function useEmpresasDashboardState() {
   );
 
   const loadData = useCallback(async () => {
-    if (!supabase || !session) {
+    if (backendAuthStatus !== "authenticated") {
       return;
     }
     setDataLoading(true);
     setMessage("");
-
-    const [profilesRes, groupsRes, templatesRes, clientsRes, clientActivitiesRes, entriesRes] =
-      await Promise.all([
-        supabase
-          .from("profiles")
-          .select("id,name,role,group_id,leader_id")
-          .order("name", { ascending: true }),
-        supabase.from("groups").select("id,name,leader_id").order("name", { ascending: true }),
-        supabase
-          .from("activity_templates")
-          .select("id,name,area,default_weight,display_order,is_active,created_by")
-          .order("display_order", { ascending: true }),
-        supabase
-          .from("clients")
-          .select("id,name,member_id,is_active,created_at")
-          .eq("is_active", true)
-          .order("name", { ascending: true }),
-        supabase
-          .from("client_activities")
-          .select("id,client_id,template_id,name,area,weight,display_order,is_active")
-          .order("display_order", { ascending: true }),
-        supabase
-          .from("checklist_entries")
-          .select("id,month,client_id,template_id,completed,completed_at,updated_at,completed_by")
-          .order("month", { ascending: false }),
-      ]);
-
-    if (
-      profilesRes.error ||
-      groupsRes.error ||
-      templatesRes.error ||
-      clientsRes.error ||
-      clientActivitiesRes.error ||
-      entriesRes.error
-    ) {
-      toast.error(
-        `Error cargando datos con RLS: ${
-          profilesRes.error?.message ??
-          groupsRes.error?.message ??
-          templatesRes.error?.message ??
-          clientsRes.error?.message ??
-          clientActivitiesRes.error?.message ??
-          entriesRes.error?.message ??
-          "desconocido"
-        }`,
-      );
+    try {
+      const catalog = await backendFetch<DashboardCatalog>("/catalog/dashboard");
+      setUsers(catalog.profiles.map(normalizeUser));
+      setGroups(catalog.groups.map(normalizeGroup));
+      setTemplates(catalog.templates.map(normalizeTemplate));
+      setClients(catalog.clients.map(normalizeClient));
+      setClientActivities(catalog.activities.map(normalizeClientActivity));
+      setEntries(catalog.entries.map(normalizeChecklist));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudieron cargar los datos.");
+    } finally {
       setDataLoading(false);
-      return;
     }
-
-    setUsers((profilesRes.data ?? []).map((row) => normalizeUser(row as DbProfileRow)));
-    setGroups((groupsRes.data ?? []).map((row) => normalizeGroup(row as DbGroupRow)));
-    setTemplates((templatesRes.data ?? []).map((row) => normalizeTemplate(row as DbTemplateRow)));
-    setClients((clientsRes.data ?? []).map((row) => normalizeClient(row as DbClientRow)));
-    setClientActivities(
-      (clientActivitiesRes.data ?? []).map((row) =>
-        normalizeClientActivity(row as DbClientActivityRow),
-      ),
-    );
-    setEntries((entriesRes.data ?? []).map((row) => normalizeChecklist(row as DbChecklistRow)));
-    setDataLoading(false);
-  }, [session, supabase]);
+  }, [backendAuthStatus]);
 
   useEffect(() => {
-    if (!supabase) {
+    if (backendAuthStatus !== "authenticated") {
       return;
     }
-
-    const bootstrap = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      setAuthLoading(false);
-    };
-    void bootstrap();
-
-    const { data } = supabase.auth.onAuthStateChange((_event, updatedSession) => {
-      setSession(updatedSession);
-    });
-
-    return () => {
-      data.subscription.unsubscribe();
-    };
-  }, [supabase]);
-
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       void loadData();
     }, 0);
-    return () => clearTimeout(timer);
-  }, [loadData, session]);
+    return () => window.clearTimeout(timer);
+  }, [backendAuthStatus, loadData]);
 
   useEffect(() => {
-    if (!supabase || !session) {
-      return;
-    }
-    const channel = subscribeChecklistRealtime(supabase, (payload) => {
-      if (payload.eventType === "DELETE") {
-        const deleted = convertRealtimeChecklist(payload.old);
-        setEntries((current) =>
-          current.filter(
-            (entry) =>
-              !(
-                entry.month === deleted.month &&
-                entry.clientId === deleted.clientId &&
-                entry.templateId === deleted.templateId
-              ),
-          ),
-        );
-        return;
-      }
-      const next = convertRealtimeChecklist(payload.new);
-      setEntries((current) => {
-        const index = current.findIndex(
-          (entry) =>
-            entry.month === next.month &&
-            entry.clientId === next.clientId &&
-            entry.templateId === next.templateId,
-        );
-        if (index < 0) {
-          return [...current, next];
-        }
-        const cloned = [...current];
-        cloned[index] = next;
-        return cloned;
-      });
-    });
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [session, supabase]);
-
-  useEffect(() => {
-    if (authLoading) {
-      return;
-    }
-    if (!session) {
+    if (backendAuthStatus === "anonymous") {
       router.replace("/login");
     }
-  }, [authLoading, router, session]);
+  }, [backendAuthStatus, router]);
 
   const leaders = useMemo(
     () => users.filter((user) => user.role === "LEADER").sort((a, b) => a.name.localeCompare(b.name)),
@@ -915,19 +814,13 @@ export function useEmpresasDashboardState() {
       : assignableMembers[0]?.id ?? "";
 
   const signOut = async () => {
-    if (!supabase) {
-      return;
-    }
-    await supabase.auth.signOut();
+    await signOutFromBackend();
     setSelectedLeaderId(null);
     setSelectedMemberId(null);
     setSelectedClientId(null);
   };
 
   const toggleChecklist = async (clientId: string, templateId: string) => {
-    if (!supabase || !session) {
-      return;
-    }
     const key = entryKey(month, clientId, templateId);
     const previous = currentMonthEntryMap.get(key);
     if (previous?.completed && !canUncheck) {
@@ -935,31 +828,16 @@ export function useEmpresasDashboardState() {
       return;
     }
     const nextCompleted = !previous?.completed;
-    const nowIso = new Date().toISOString();
-
-    const { data, error } = await supabase
-      .from("checklist_entries")
-      .upsert(
+    try {
+      const data = await backendFetch<DbChecklistRow>(
+        `/checklist/${clientId}/${templateId}?month=${month}`,
         {
-          month,
-          client_id: clientId,
-          template_id: templateId,
-          completed: nextCompleted,
-          completed_at: nextCompleted ? nowIso : null,
-          completed_by: nextCompleted ? session.user.id : null,
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ completed: nextCompleted }),
         },
-        { onConflict: "month,client_id,template_id" },
-      )
-      .select("id,month,client_id,template_id,completed,completed_at,updated_at,completed_by")
-      .single();
-
-    if (error) {
-      setMessage(`No se pudo actualizar check: ${error.message}`);
-      return;
-    }
-
-    if (data) {
-      const normalized = normalizeChecklist(data as DbChecklistRow);
+      );
+      const normalized = normalizeChecklist(data);
       setEntries((current) => {
         const index = current.findIndex(
           (entry) =>
@@ -975,14 +853,17 @@ export function useEmpresasDashboardState() {
         return cloned;
       });
       setMessage(nextCompleted ? "Check registrado." : "Check retirado.");
+    } catch (error) {
+      setMessage(
+        `No se pudo actualizar check: ${
+          error instanceof Error ? error.message : "Error desconocido"
+        }`,
+      );
     }
   };
 
   const onCreateTemplate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!supabase || !session) {
-      return;
-    }
     const trimmedName = newTemplateName.trim();
     if (!trimmedName) {
       toast.warning("Escribe nombre para actividad estandar.");
@@ -992,77 +873,74 @@ export function useEmpresasDashboardState() {
       toast.warning("El peso debe estar entre 1 y 100.");
       return;
     }
-    const nextOrder =
-      templates.reduce((highest, template) => Math.max(highest, template.displayOrder), 0) + 1;
-    const { data, error } = await supabase
-      .from("activity_templates")
-      .insert({
-        name: trimmedName,
-        area: newTemplateArea,
-        default_weight: newTemplateWeight,
-        display_order: nextOrder,
-        is_active: true,
-        created_by: session.user.id,
-      })
-      .select("id,name,area,default_weight,display_order,is_active,created_by")
-      .single();
-
-    if (error) {
-      toast.error(`No se pudo crear actividad estandar: ${error.message}`);
-      return;
+    try {
+      const data = await backendFetch<DbTemplateRow>("/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: trimmedName,
+          area: newTemplateArea,
+          defaultWeight: newTemplateWeight,
+        }),
+      });
+      setTemplates((current) => [...current, normalizeTemplate(data)]);
+      setNewTemplateName("");
+      setNewTemplateWeight(10);
+      toast.success("Actividad estandar creada.");
+    } catch (error) {
+      toast.error(
+        `No se pudo crear actividad estandar: ${
+          error instanceof Error ? error.message : "Error desconocido"
+        }`,
+      );
     }
-    if (data) {
-      setTemplates((current) => [...current, normalizeTemplate(data as DbTemplateRow)]);
-    }
-    setNewTemplateName("");
-    setNewTemplateWeight(10);
-    toast.success("Actividad estandar creada.");
   };
 
   const toggleTemplateActive = async (template: ActivityTemplate) => {
-    if (!supabase) {
-      return;
+    try {
+      const updated = await backendFetch<DbTemplateRow>(`/templates/${template.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !template.isActive }),
+      });
+      const normalized = normalizeTemplate(updated);
+      setTemplates((current) =>
+        current.map((item) => (item.id === normalized.id ? normalized : item)),
+      );
+    } catch (error) {
+      toast.error(
+        `No se pudo cambiar estado de plantilla: ${
+          error instanceof Error ? error.message : "Error desconocido"
+        }`,
+      );
     }
-    const { error } = await supabase
-      .from("activity_templates")
-      .update({ is_active: !template.isActive })
-      .eq("id", template.id);
-    if (error) {
-      toast.error(`No se pudo cambiar estado de plantilla: ${error.message}`);
-      return;
-    }
-    setTemplates((current) =>
-      current.map((item) =>
-        item.id === template.id ? { ...item, isActive: !item.isActive } : item,
-      ),
-    );
   };
 
   const updateTemplateWeight = async (template: ActivityTemplate, nextWeight: number) => {
-    if (!supabase) {
-      return;
-    }
     if (!Number.isFinite(nextWeight) || nextWeight <= 0 || nextWeight > 100) {
       return;
     }
-    const { error } = await supabase
-      .from("activity_templates")
-      .update({ default_weight: nextWeight })
-      .eq("id", template.id);
-    if (error) {
-      toast.error(`No se pudo actualizar peso de plantilla: ${error.message}`);
-      return;
+    try {
+      const updated = await backendFetch<DbTemplateRow>(`/templates/${template.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ defaultWeight: nextWeight }),
+      });
+      const normalized = normalizeTemplate(updated);
+      setTemplates((current) =>
+        current.map((item) => (item.id === normalized.id ? normalized : item)),
+      );
+    } catch (error) {
+      toast.error(
+        `No se pudo actualizar peso de plantilla: ${
+          error instanceof Error ? error.message : "Error desconocido"
+        }`,
+      );
     }
-    setTemplates((current) =>
-      current.map((item) => (item.id === template.id ? { ...item, defaultWeight: nextWeight } : item)),
-    );
   };
 
   const onCreateClient = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!supabase || !session) {
-      return;
-    }
     const trimmedName = newClientName.trim();
     if (!trimmedName) {
       toast.warning("Escribe nombre de la empresa.");
@@ -1077,50 +955,39 @@ export function useEmpresasDashboardState() {
       return;
     }
 
-    const createResponse = await fetch("/api/clients/create", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        name: trimmedName,
-        memberId: assignableMemberValue,
-        templateIds: selectedTemplateIds,
-      }),
-    });
-    const createPayload = (await createResponse.json().catch(() => ({}))) as {
-      clientId?: string;
-      error?: string;
-    };
-
-    if (!createResponse.ok || !createPayload.clientId) {
-      const rawError = createPayload.error ?? "Error desconocido";
+    try {
+      const { clientId } = await backendFetch<{ clientId: string }>("/companies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: trimmedName,
+          memberId: assignableMemberValue,
+          templateIds: selectedTemplateIds,
+        }),
+      });
+      setSelectedTemplateIds([]);
+      setNewClientName("");
+      setSelectedClientId(clientId);
+      setSelectedMemberId(assignableMemberValue);
+      const member = usersById.get(assignableMemberValue);
+      if (member?.leaderId) {
+        setSelectedLeaderId(member.leaderId);
+      }
+      await loadData();
+      toast.success("Empresa creada con checklist base.");
+    } catch (error) {
       const selectedMemberName =
         usersById.get(assignableMemberValue)?.name ?? assignableMemberValue ?? "N/A";
-      if (createResponse.status === 403 || rawError.toLowerCase().includes("sin permisos")) {
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+      if (errorMessage.toLowerCase().includes("sin permisos")) {
         toast.error(`Sin permisos para crear empresa con contador ${selectedMemberName}.`);
       } else {
-        toast.error(`No se pudo crear empresa: ${rawError}`);
+        toast.error(`No se pudo crear empresa: ${errorMessage}`);
       }
-      return;
     }
-
-    const createdClientId = createPayload.clientId;
-    setSelectedTemplateIds([]);
-    setNewClientName("");
-    setSelectedClientId(createdClientId);
-    setSelectedMemberId(assignableMemberValue);
-    const member = usersById.get(assignableMemberValue);
-    if (member?.leaderId) {
-      setSelectedLeaderId(member.leaderId);
-    }
-    await loadData();
-    toast.success("Empresa creada con checklist base.");
   };
 
   return {
-    supabase,
     session,
     authLoading,
     currentUser,

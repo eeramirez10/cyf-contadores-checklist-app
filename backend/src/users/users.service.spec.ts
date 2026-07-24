@@ -18,7 +18,10 @@ describe('UsersService', () => {
             findProfileById: jest.fn(),
           },
         },
-        { provide: PrismaService, useValue: { profiles: { create: jest.fn() } } },
+        {
+          provide: PrismaService,
+          useValue: { profiles: { create: jest.fn() } },
+        },
       ],
     }).compile();
 
