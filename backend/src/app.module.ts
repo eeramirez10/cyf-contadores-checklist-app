@@ -31,6 +31,14 @@ import { UsersModule } from './users/users.module';
         JWT_REFRESH_SECRET: Joi.string().min(32).required(),
         JWT_ACCESS_TTL: Joi.string().default('15m'),
         JWT_REFRESH_TTL_DAYS: Joi.number().integer().min(1).default(30),
+        AUTH_COOKIE_SECURE: Joi.boolean()
+          .truthy('true')
+          .falsy('false')
+          .default(false),
+        AUTH_COOKIE_SAME_SITE: Joi.string()
+          .valid('lax', 'strict', 'none')
+          .default('lax'),
+        AUTH_COOKIE_DOMAIN: Joi.string().hostname().optional(),
       }),
       validationOptions: {
         abortEarly: true,
