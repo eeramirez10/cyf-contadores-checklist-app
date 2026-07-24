@@ -62,7 +62,12 @@ export class AuthService {
     });
     const profile = await this.authRepository.findProfileById(payload.sub);
     if (!profile?.is_active) throw new UnauthorizedException();
-    return { id: profile.id, role: profile.role, name: profile.name };
+    return {
+      id: profile.id,
+      email: profile.email,
+      role: profile.role,
+      name: profile.name,
+    };
   }
 
   private async issueTokens(

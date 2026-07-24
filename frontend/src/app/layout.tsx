@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "react-toastify/dist/ReactToastify.css";
 import { AppToastProvider } from "@/components/layout/app-toast-provider";
+import { AuthProvider } from "@/features/auth/components/auth-provider";
 
 export const metadata: Metadata = {
   title: "Demo de Avance Mensual en Tiempo Real",
@@ -17,7 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
         <AppToastProvider />
       </body>
     </html>

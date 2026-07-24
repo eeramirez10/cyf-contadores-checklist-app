@@ -2,24 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/features/auth/components/auth-provider";
 
 type AppHeaderProps = {
   title: string;
   description: string;
   onToggleSidebar: () => void;
-};
-
-type ProfileRow = {
-  name: string;
-};
-
-type CompanyRow = {
-  id: string;
-  name: string;
-  member_id: string;
 };
 
 const currentMonthKey = (): string => new Date().toISOString().slice(0, 7);
@@ -40,13 +29,10 @@ export function AppHeader({ title, description, onToggleSidebar }: AppHeaderProp
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const supabase = useMemo(() => getSupabaseBrowserClient(), []);
-  const [session, setSession] = useState<Session | null>(null);
-  const [displayName, setDisplayName] = useState<string>("Usuario");
+  const { signOut, user } = useAuth();
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const [commandOpen, setCommandOpen] = useState<boolean>(false);
   const [commandQuery, setCommandQuery] = useState<string>("");
-  const [companies, setCompanies] = useState<CompanyRow[]>([]);
 
   const menuRef = useRef<HTMLDivElement | null>(null);
   const commandInputRef = useRef<HTMLInputElement | null>(null);
@@ -68,55 +54,6 @@ export function AppHeader({ title, description, onToggleSidebar }: AppHeaderProp
     const queryString = next.toString();
     router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
   };
-
-  useEffect(() => {
-    if (!supabase) {
-      return;
-    }
-    const load = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      if (!data.session) {
-        return;
-      }
-      const fallbackName =
-        (data.session.user.user_metadata?.full_name as string | undefined) ??
-        data.session.user.email?.split("@")[0] ??
-        "Usuario";
-      setDisplayName(fallbackName);
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("name")
-        .eq("id", data.session.user.id)
-        .maybeSingle();
-      if (profile) {
-        setDisplayName((profile as ProfileRow).name);
-      }
-    };
-    void load();
-
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-    });
-    return () => {
-      data.subscription.unsubscribe();
-    };
-  }, [supabase]);
-
-  useEffect(() => {
-    if (!supabase || !session) {
-      return;
-    }
-    const loadCompanies = async () => {
-      const { data } = await supabase
-        .from("clients")
-        .select("id,name,member_id")
-        .eq("is_active", true)
-        .order("name", { ascending: true });
-      setCompanies((data ?? []) as CompanyRow[]);
-    };
-    void loadCompanies();
-  }, [session, supabase]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -160,23 +97,14 @@ export function AppHeader({ title, description, onToggleSidebar }: AppHeaderProp
     return () => window.clearTimeout(timer);
   }, [commandOpen]);
 
-  const filteredCompanies = useMemo(() => {
-    const query = commandQuery.trim().toLowerCase();
-    if (!query) {
-      return companies.slice(0, 10);
-    }
-    return companies.filter((company) => company.name.toLowerCase().includes(query)).slice(0, 18);
-  }, [commandQuery, companies]);
-
-  const userEmail = session?.user.email ?? "sin-correo@demo.local";
-  const avatarUrl = (session?.user.user_metadata?.avatar_url as string | undefined) ?? "";
+  const filteredCompanies: Array<{ id: string; name: string }> = [];
+  const displayName = user?.name ?? "Usuario";
+  const userEmail = user?.email ?? "";
+  const avatarUrl = "";
   const initials = userInitials(displayName, userEmail);
 
   const onSignOut = async () => {
-    if (!supabase) {
-      return;
-    }
-    await supabase.auth.signOut();
+    await signOut();
     setMenuOpen(false);
     router.push("/login");
   };

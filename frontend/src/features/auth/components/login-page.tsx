@@ -1,155 +1,40 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Session } from "@supabase/supabase-js";
 import { toast } from "react-toastify";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
-
-const DEMO_ACCOUNTS = [
-  {
-    label: "Administrador",
-    email: "admin@demo.com",
-    password: "DemoAdmin2026!",
-    description: "Acceso completo",
-  },
-  {
-    label: "Lider",
-    email: "lider.luis@demo.com",
-    password: "DemoLider2026!",
-    description: "Acceso a su grupo",
-  },
-  {
-    label: "Contador",
-    email: "erick.member@demo.com",
-    password: "DemoMember2026!",
-    description: "Acceso a sus empresas",
-  },
-] as const;
+import { useAuth } from "@/features/auth/components/auth-provider";
 
 export function LoginPage() {
   const router = useRouter();
-  const supabase = useMemo(() => getSupabaseBrowserClient(), []);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState<boolean>(() => Boolean(supabase));
+  const { signIn: authenticate, status } = useAuth();
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [busy, setBusy] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!supabase) {
-      return;
+    if (status === "authenticated") {
+      router.replace("/dashboard");
     }
-
-    const bootstrap = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      setLoading(false);
-      if (data.session) {
-        router.replace("/dashboard");
-      }
-    };
-    void bootstrap();
-
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      if (nextSession) {
-        router.replace("/dashboard");
-      }
-    });
-
-    return () => {
-      data.subscription.unsubscribe();
-    };
-  }, [router, supabase]);
+  }, [router, status]);
 
   const signIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!supabase) {
-      return;
-    }
     setBusy(true);
     try {
-      const authResponse = await fetch("/api/auth", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: email.trim(),
-          password,
-        }),
-      });
-      const payload = (await authResponse.json().catch(() => ({}))) as {
-        access_token?: string;
-        refresh_token?: string;
-        error?: string;
-      };
-
-      if (!authResponse.ok || !payload.access_token || !payload.refresh_token) {
-        const message = payload.error ?? "No se pudo iniciar sesion.";
-        toast.error(message);
-        return;
-      }
-
-      const { error } = await supabase.auth.setSession({
-        access_token: payload.access_token,
-        refresh_token: payload.refresh_token,
-      });
-
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-
+      await authenticate(email.trim(), password);
       setEmail("");
       setPassword("");
       toast.success("Sesion iniciada.");
     } catch (error) {
-      try {
-        const { error: directError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        console.log({directError})
-
-        if (directError) {
-          toast.error(directError.message);
-          return;
-        }
-
-        setEmail("");
-        setPassword("");
-        toast.success("Sesion iniciada.");
-      } catch (directError) {
-        console.log({directError})
-        const message =
-          directError instanceof Error
-            ? directError.message
-            : error instanceof Error
-              ? error.message
-              : "No se pudo iniciar sesion.";
-        toast.error(message);
-      }
+      const message = error instanceof Error ? error.message : "No se pudo iniciar sesion.";
+      toast.error(message);
     } finally {
       setBusy(false);
     }
   };
 
-  if (!supabase) {
-    return (
-      <main className="app-grid-bg min-h-screen px-4 py-10 md:px-8">
-        <div className="mx-auto max-w-3xl rounded-2xl border border-[var(--line)] bg-white p-6">
-          <h1 className="display-title text-3xl font-semibold">Falta configuracion de Supabase</h1>
-          <p className="mt-2 text-sm text-[var(--foreground-soft)]">
-            Agrega `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` en `.env.local`.
-          </p>
-        </div>
-      </main>
-    );
-  }
-
-  if (loading || session) {
+  if (status === "loading" || status === "authenticated") {
     return (
       <main className="app-grid-bg min-h-screen px-4 py-10 md:px-8">
         <div className="mx-auto max-w-2xl rounded-2xl border border-[var(--line)] bg-white p-6 text-sm text-[var(--foreground-soft)]">
@@ -195,36 +80,6 @@ export function LoginPage() {
           </button>
         </form>
 
-        <section className="mt-6 border-t border-[var(--line)] pt-5" aria-label="Accesos de demostracion">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-sm font-semibold text-gray-900">Accesos de prueba</h2>
-            <span className="text-[11px] text-[var(--foreground-soft)]">Selecciona un perfil</span>
-          </div>
-          <div className="mt-3 grid gap-2">
-            {DEMO_ACCOUNTS.map((account) => (
-              <button
-                key={account.email}
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  setEmail(account.email);
-                  setPassword(account.password);
-                }}
-                className="group flex items-center justify-between rounded-xl border border-[var(--line)] bg-[#f8fafc] px-3 py-2.5 text-left transition-colors hover:border-[#aeb8ff] hover:bg-[#f4f6ff] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <span>
-                  <span className="block text-sm font-medium text-gray-900">{account.label}</span>
-                  <span className="mt-0.5 block text-xs text-[var(--foreground-soft)]">
-                    {account.description}
-                  </span>
-                </span>
-                <span className="text-xs font-medium text-[#3641f5] group-hover:underline">
-                  Usar acceso
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
       </div>
     </main>
   );
