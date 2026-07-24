@@ -20,6 +20,17 @@ La migracion `prisma/manual-migrations/20260723_01_local_auth.sql` copia los cor
 
 Para frontend y API en sitios distintos, configura `AUTH_COOKIE_SAME_SITE=none` y `AUTH_COOKIE_SECURE=true`.
 
+### Inicializar el primer administrador
+
+Aplica primero la migracion local de auth y usa variables de entorno temporales. El comando solo permite configurar un perfil existente con rol `ADMIN`, cifra la contrasena con Argon2 y revoca sus sesiones previas.
+
+```bash
+pnpm db:apply:local-auth
+LOCAL_ADMIN_EMAIL=admin@example.com LOCAL_ADMIN_PASSWORD='use-a-long-unique-password' pnpm auth:bootstrap-admin
+```
+
+No guardes la contrasena en `.env`, `auth.http` ni en el historial compartido del shell. Para un equipo real, el siguiente paso es implementar invitaciones o restablecimiento de contrasena con enlaces de un solo uso enviados por correo.
+
 ## Verificacion
 
 ```bash
