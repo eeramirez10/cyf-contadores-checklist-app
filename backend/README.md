@@ -38,3 +38,10 @@ pnpm test
 pnpm test:e2e
 pnpm build
 ```
+
+## Modulos de negocio
+
+- `GET /api/v1/catalog/dashboard`: catalogo filtrado por rol para el panel.
+- `PUT /api/v1/checklist/:clientId/:templateId?month=YYYY-MM`: actualiza un check y notifica por Socket.IO.
+- `POST /api/v1/companies` y `/api/v1/templates`: alta de empresas y plantillas bajo permisos de rol.
+- `/api/v1/documents`: empresas visibles, contactos, PDFs, enlaces publicos e historial de envios. Configura `DOCUMENTS_STORAGE_DIR` y, para compartir o enviar, `PUBLIC_BASE_URL`.

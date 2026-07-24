@@ -11,6 +11,7 @@ import { ChecklistModule } from './checklist/checklist.module';
 import { IndicatorsModule } from './indicators/indicators.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { CompaniesModule } from './companies/companies.module';
+import { DocumentsModule } from './documents/documents.module';
 import { TemplatesModule } from './templates/templates.module';
 
 @Module({
@@ -58,6 +59,7 @@ import { TemplatesModule } from './templates/templates.module';
     IndicatorsModule,
     CatalogModule,
     CompaniesModule,
+    DocumentsModule,
     TemplatesModule,
   ],
 })

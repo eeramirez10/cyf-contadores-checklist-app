@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
 import { toast } from "react-toastify";
 
 import {
@@ -21,7 +20,8 @@ import type {
   DocumentClient,
   DocumentRecord,
 } from "@/features/documentos/types/document-center";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { useAuth } from "@/features/auth/components/auth-provider";
+import { backendFetch } from "@/lib/backend-auth";
 
 const formatBytes = (value: number): string => {
   if (value < 1024) {
@@ -85,9 +85,8 @@ function ModalShell({
 }
 
 export function DocumentsPage() {
-  const supabase = useMemo(() => getSupabaseBrowserClient(), []);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loadingSession, setLoadingSession] = useState<boolean>(true);
+  const { status, user } = useAuth();
+  const loadingSession = status === "loading";
   const [loadingClients, setLoadingClients] = useState<boolean>(false);
   const [loadingCenterData, setLoadingCenterData] = useState<boolean>(false);
 
@@ -135,40 +134,13 @@ export function DocumentsPage() {
     [activeSendContactId, contacts],
   );
 
-  const getValidAccessToken = useCallback(async (): Promise<string | null> => {
-    if (!supabase) {
-      return null;
-    }
-
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (!sessionError && sessionData.session?.access_token) {
-      setSession(sessionData.session);
-      return sessionData.session.access_token;
-    }
-
-    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-    if (refreshError || !refreshData.session?.access_token) {
-      setSession(null);
-      return null;
-    }
-
-    setSession(refreshData.session);
-    return refreshData.session.access_token;
-  }, [supabase]);
-
   const loadCenterData = useCallback(async (clientId: string) => {
-    const accessToken = await getValidAccessToken();
-    if (!accessToken) {
-      toast.error("Sesion invalida. Inicia sesion de nuevo.");
-      return;
-    }
-
     setLoadingCenterData(true);
     try {
       const [contactsResult, documentsResult, deliveriesResult] = await Promise.allSettled([
-        fetchContacts(accessToken, clientId),
-        fetchDocuments(accessToken, clientId),
-        fetchDeliveries(accessToken, clientId),
+        fetchContacts(clientId),
+        fetchDocuments(clientId),
+        fetchDeliveries(clientId),
       ]);
 
       if (contactsResult.status === "fulfilled") {
@@ -197,7 +169,7 @@ export function DocumentsPage() {
     } finally {
       setLoadingCenterData(false);
     }
-  }, [getValidAccessToken]);
+  }, []);
 
   const selectClient = useCallback((clientId: string) => {
     setSelectedClientId(clientId);
@@ -211,57 +183,25 @@ export function DocumentsPage() {
   }, [loadCenterData]);
 
   const loadClients = useCallback(async () => {
-    if (!supabase) {
-      return;
-    }
-
     setLoadingClients(true);
     try {
-      const response = await supabase
-        .from("clients")
-        .select("id,name")
-        .order("name", { ascending: true });
-
-      if (response.error) {
-        toast.error(`No se pudieron cargar empresas: ${response.error.message}`);
-        return;
-      }
-
-      const nextClients = (response.data ?? []) as DocumentClient[];
+      const nextClients = await backendFetch<DocumentClient[]>("/documents/clients");
       setClients(nextClients);
       selectClient(nextClients[0]?.id ?? "");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudieron cargar empresas.");
     } finally {
       setLoadingClients(false);
     }
-  }, [selectClient, supabase]);
+  }, [selectClient]);
 
   useEffect(() => {
-    if (!supabase) {
+    if (status !== "authenticated") {
       return;
     }
-
-    const applySession = (nextSession: Session | null, shouldLoadClients: boolean) => {
-      setSession(nextSession);
-      setLoadingSession(false);
-      if (nextSession && shouldLoadClients) {
-        void loadClients();
-      }
-    };
-
-    const loadSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      applySession(data.session, true);
-    };
-
-    void loadSession();
-    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
-      applySession(nextSession, event !== "INITIAL_SESSION");
-    });
-
-    return () => {
-      data.subscription.unsubscribe();
-    };
-  }, [loadClients, supabase]);
+    const timer = window.setTimeout(() => void loadClients(), 0);
+    return () => window.clearTimeout(timer);
+  }, [loadClients, status]);
 
   useEffect(() => {
     const hasOpenModal =
@@ -347,15 +287,9 @@ export function DocumentsPage() {
       return;
     }
 
-    const accessToken = await getValidAccessToken();
-    if (!accessToken) {
-      toast.error("Sesion invalida. Inicia sesion de nuevo.");
-      return;
-    }
-
     setCreatingContact(true);
     try {
-      const createdContact = await createContact(accessToken, {
+      const createdContact = await createContact({
         clientId: selectedClientId,
         name: contactName.trim(),
         email: contactEmail.trim(),
@@ -380,14 +314,8 @@ export function DocumentsPage() {
       return;
     }
 
-    const accessToken = await getValidAccessToken();
-    if (!accessToken) {
-      toast.error("Sesion invalida. Inicia sesion de nuevo.");
-      return;
-    }
-
     try {
-      await deleteContact(accessToken, contact.id);
+      await deleteContact(contact.id);
       setContacts((current) => current.filter((item) => item.id !== contact.id));
       setDeliveries((current) => current.filter((item) => item.contactId !== contact.id));
       toast.success("Contacto eliminado.");
@@ -408,15 +336,9 @@ export function DocumentsPage() {
       return;
     }
 
-    const accessToken = await getValidAccessToken();
-    if (!accessToken) {
-      toast.error("Sesion invalida. Inicia sesion de nuevo.");
-      return;
-    }
-
     setUploadingDocument(true);
     try {
-      const createdDocument = await uploadDocument(accessToken, {
+      const createdDocument = await uploadDocument({
         clientId: selectedClientId,
         title: documentTitle.trim(),
         description: documentDescription.trim(),
@@ -440,14 +362,8 @@ export function DocumentsPage() {
       return;
     }
 
-    const accessToken = await getValidAccessToken();
-    if (!accessToken) {
-      toast.error("Sesion invalida. Inicia sesion de nuevo.");
-      return;
-    }
-
     try {
-      await deleteDocument(accessToken, document.id);
+      await deleteDocument(document.id);
       setDocuments((current) => current.filter((item) => item.id !== document.id));
       setDeliveries((current) => current.filter((item) => item.documentId !== document.id));
       toast.success("Documento eliminado.");
@@ -463,15 +379,9 @@ export function DocumentsPage() {
       return;
     }
 
-    const accessToken = await getValidAccessToken();
-    if (!accessToken) {
-      toast.error("Sesion invalida. Inicia sesion de nuevo.");
-      return;
-    }
-
     setEditingDocument(true);
     try {
-      const updatedDocument = await updateDocument(accessToken, {
+      const updatedDocument = await updateDocument({
         documentId: editDocumentTarget.id,
         title: editDocumentTitle.trim(),
         description: editDocumentDescription.trim(),
@@ -514,15 +424,9 @@ export function DocumentsPage() {
       return;
     }
 
-    const accessToken = await getValidAccessToken();
-    if (!accessToken) {
-      toast.error("Sesion invalida. Inicia sesion de nuevo.");
-      return;
-    }
-
     setSendingDocument(true);
     try {
-      const result = await sendDocument(accessToken, {
+      const result = await sendDocument({
         documentId: sendDocumentTarget.id,
         contactId: activeSendContactId,
         channels,
@@ -555,17 +459,6 @@ export function DocumentsPage() {
     }
   };
 
-  if (!supabase) {
-    return (
-      <article className="surface rounded-3xl p-6">
-        <h2 className="display-title text-2xl font-semibold">Falta configuracion de Supabase</h2>
-        <p className="mt-2 text-sm text-[var(--foreground-soft)]">
-          Agrega `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-        </p>
-      </article>
-    );
-  }
-
   if (loadingSession) {
     return (
       <article className="surface rounded-3xl p-6 text-sm text-[var(--foreground-soft)]">
@@ -574,7 +467,7 @@ export function DocumentsPage() {
     );
   }
 
-  if (!session) {
+  if (!user) {
     return (
       <article className="surface rounded-3xl p-6">
         <h2 className="display-title text-2xl font-semibold">Sin sesion</h2>
