@@ -10,7 +10,7 @@ cp .env.example .env
 pnpm start:dev
 ```
 
-La verificacion de disponibilidad es `GET /api/v1/health`. Las solicitudes manuales estan en `health.http` y `auth.http`.
+La verificacion de disponibilidad es `GET /api/v1/health`. Las solicitudes manuales estan en `web/health.http` y `web/auth.http`.
 
 ## Autenticacion local
 
