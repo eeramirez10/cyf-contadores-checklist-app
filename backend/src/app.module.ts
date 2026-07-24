@@ -7,6 +7,8 @@ import { databaseConfig } from './config/database.config';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
+import { ChecklistModule } from './checklist/checklist.module';
+import { IndicatorsModule } from './indicators/indicators.module';
 
 @Module({
   imports: [
@@ -49,6 +51,8 @@ import { UsersModule } from './users/users.module';
     DatabaseModule,
     HealthModule,
     UsersModule,
+    ChecklistModule,
+    IndicatorsModule,
   ],
 })
 export class AppModule {}

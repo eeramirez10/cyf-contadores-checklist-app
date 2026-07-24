@@ -2,6 +2,7 @@ import { user_role } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
 import { type UserProfileRecord, UsersRepository } from './users.repository';
 import { UsersService } from './users.service';
+import { PrismaService } from '../database/prisma.service';
 
 describe('UsersService', () => {
   let usersService: UsersService;
@@ -17,6 +18,7 @@ describe('UsersService', () => {
             findProfileById: jest.fn(),
           },
         },
+        { provide: PrismaService, useValue: { profiles: { create: jest.fn() } } },
       ],
     }).compile();
 

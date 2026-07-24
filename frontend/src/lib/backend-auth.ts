@@ -13,6 +13,8 @@ type AccessTokenResponse = {
 
 let accessToken: string | null = null;
 
+export const getBackendAccessToken = (): string | null => accessToken;
+
 const apiUrl = (path: string): string => `${env.apiUrl}${path}`;
 
 async function parseResponse<T>(response: Response): Promise<T> {
