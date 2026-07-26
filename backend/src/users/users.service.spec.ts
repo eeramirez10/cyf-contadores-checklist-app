@@ -4,7 +4,7 @@ import { type UserProfileRecord, UsersRepository } from './users.repository';
 import { UsersService } from './users.service';
 import { PrismaService } from '../database/prisma.service';
 
-function readCreateData(input: unknown): object {
+function readPrismaData(input: unknown): object {
   if (!input || typeof input !== 'object' || !('data' in input)) {
     throw new Error('Expected Prisma create input');
   }
@@ -22,6 +22,7 @@ describe('UsersService', () => {
     profiles: {
       create: jest.Mock;
       findUnique: jest.Mock;
+      update: jest.Mock;
     };
     groups: {
       findUnique: jest.Mock;
@@ -42,7 +43,11 @@ describe('UsersService', () => {
         {
           provide: PrismaService,
           useValue: {
-            profiles: { create: jest.fn(), findUnique: jest.fn() },
+            profiles: {
+              create: jest.fn(),
+              findUnique: jest.fn(),
+              update: jest.fn(),
+            },
             groups: { findUnique: jest.fn(), update: jest.fn() },
           },
         },
@@ -87,7 +92,7 @@ describe('UsersService', () => {
       leaderId: 'leader-id',
     });
 
-    expect(readCreateData(createInput)).toMatchObject({
+    expect(readPrismaData(createInput)).toMatchObject({
       email: 'admin@example.com',
       group_id: null,
       leader_id: null,
@@ -116,9 +121,34 @@ describe('UsersService', () => {
       leaderId: 'leader-id',
     });
 
-    expect(readCreateData(createInput)).toMatchObject({
+    expect(readPrismaData(createInput)).toMatchObject({
       group_id: 'group-id',
       leader_id: 'leader-id',
+    });
+  });
+
+  it('clears an existing member hierarchy when the update sends null', async () => {
+    prisma.profiles.findUnique.mockResolvedValue({
+      id: 'member-id',
+      name: 'Contador Local',
+      role: user_role.MEMBER,
+      group_id: 'group-id',
+      leader_id: 'leader-id',
+    });
+    let updateInput: unknown;
+    prisma.profiles.update.mockImplementation((input: unknown) => {
+      updateInput = input;
+      return Promise.resolve({ id: 'member-id' });
+    });
+
+    await usersService.updateAdminUser('ADMIN', 'member-id', {
+      groupId: null,
+      leaderId: null,
+    });
+
+    expect(readPrismaData(updateInput)).toMatchObject({
+      group_id: null,
+      leader_id: null,
     });
   });
 });

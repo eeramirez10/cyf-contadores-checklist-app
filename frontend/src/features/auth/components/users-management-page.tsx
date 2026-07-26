@@ -29,6 +29,12 @@ export function UsersManagementPage() {
   const [groupId, setGroupId] = useState("");
   const [leaderId, setLeaderId] = useState("");
   const [newGroupName, setNewGroupName] = useState("");
+  const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [editingRole, setEditingRole] = useState<ManagedRole>("MEMBER");
+  const [editingGroupId, setEditingGroupId] = useState("");
+  const [editingLeaderId, setEditingLeaderId] = useState("");
+  const [editingIsActive, setEditingIsActive] = useState(true);
 
   const leaders = useMemo(
     () => users.filter((item) => item.role === "LEADER" && item.is_active),
@@ -114,6 +120,44 @@ export function UsersManagementPage() {
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "No se pudo crear grupo.",
+      );
+    }
+  };
+
+  const startEditing = (managedUser: ManagedUser) => {
+    setEditingUser(managedUser);
+    setEditingName(managedUser.name);
+    setEditingRole(managedUser.role);
+    setEditingGroupId(managedUser.group_id ?? "");
+    setEditingLeaderId(managedUser.leader_id ?? "");
+    setEditingIsActive(managedUser.is_active);
+  };
+
+  const cancelEditing = () => setEditingUser(null);
+
+  const updateUser = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editingUser) return;
+    try {
+      await backendFetch(`/admin/users/${editingUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editingName,
+          role: editingRole,
+          groupId: editingRole === "ADMIN" ? null : editingGroupId || null,
+          leaderId: editingRole === "MEMBER" ? editingLeaderId || null : null,
+          isActive: editingIsActive,
+        }),
+      });
+      toast.success("Usuario actualizado.");
+      cancelEditing();
+      await load();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No se pudo actualizar usuario.",
       );
     }
   };
@@ -237,6 +281,7 @@ export function UsersManagementPage() {
               <th>Grupo</th>
               <th>Lider</th>
               <th>Estado</th>
+              <th className="text-right">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -256,11 +301,102 @@ export function UsersManagementPage() {
                     : "-"}
                 </td>
                 <td>{item.is_active ? "Activo" : "Inactivo"}</td>
+                <td className="text-right">
+                  <button
+                    type="button"
+                    onClick={() => startEditing(item)}
+                    className="rounded-lg border border-[var(--line)] px-3 py-1.5 font-medium"
+                  >
+                    Editar
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {editingUser ? (
+        <form
+          onSubmit={updateUser}
+          className="surface grid gap-3 rounded-2xl p-5 md:grid-cols-2"
+        >
+          <h2 className="display-title col-span-full text-xl font-semibold">
+            Editar usuario: {editingUser.email ?? editingUser.name}
+          </h2>
+          <input
+            required
+            value={editingName}
+            onChange={(event) => setEditingName(event.target.value)}
+            className="soft-input px-3 py-2"
+            placeholder="Nombre"
+          />
+          <select
+            value={editingRole}
+            onChange={(event) =>
+              setEditingRole(event.target.value as ManagedRole)
+            }
+            className="soft-input px-3 py-2"
+          >
+            <option value="MEMBER">Contador</option>
+            <option value="LEADER">Lider</option>
+            <option value="ADMIN">Administrador</option>
+          </select>
+          {editingRole !== "ADMIN" ? (
+            <select
+              value={editingGroupId}
+              onChange={(event) => setEditingGroupId(event.target.value)}
+              className="soft-input px-3 py-2"
+            >
+              <option value="">Sin grupo</option>
+              {groups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {editingRole === "MEMBER" ? (
+            <select
+              value={editingLeaderId}
+              onChange={(event) => setEditingLeaderId(event.target.value)}
+              className="soft-input px-3 py-2"
+            >
+              <option value="">Sin lider</option>
+              {leaders
+                .filter(
+                  (leader) =>
+                    leader.id !== editingUser.id &&
+                    (!editingGroupId || leader.group_id === editingGroupId),
+                )
+                .map((leader) => (
+                  <option key={leader.id} value={leader.id}>
+                    {leader.name}
+                  </option>
+                ))}
+            </select>
+          ) : null}
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={editingIsActive}
+              onChange={(event) => setEditingIsActive(event.target.checked)}
+            />
+            Usuario activo
+          </label>
+          <div className="col-span-full flex flex-wrap gap-3">
+            <button className="rounded-xl bg-[#3641f5] px-4 py-2 font-medium text-white">
+              Guardar cambios
+            </button>
+            <button
+              type="button"
+              onClick={cancelEditing}
+              className="rounded-xl border border-[var(--line)] px-4 py-2 font-medium"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      ) : null}
     </section>
   );
 }

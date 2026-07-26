@@ -13,8 +13,8 @@ type ManagedRole = 'ADMIN' | 'LEADER' | 'MEMBER';
 type UserInput = {
   name: string;
   role: ManagedRole;
-  groupId?: string;
-  leaderId?: string;
+  groupId?: string | null;
+  leaderId?: string | null;
 };
 
 @Injectable()
@@ -109,8 +109,9 @@ export class UsersService {
       {
         name: data.name ?? current.name,
         role,
-        groupId: data.groupId ?? current.group_id ?? undefined,
-        leaderId: data.leaderId ?? current.leader_id ?? undefined,
+        groupId: data.groupId === undefined ? current.group_id : data.groupId,
+        leaderId:
+          data.leaderId === undefined ? current.leader_id : data.leaderId,
       },
       userId,
     );

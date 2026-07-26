@@ -14,11 +14,11 @@ import { UsersService } from './users.service';
 class UserAssignmentDto {
   @IsOptional()
   @IsUUID()
-  groupId?: string;
+  groupId?: string | null;
 
   @IsOptional()
   @IsUUID()
-  leaderId?: string;
+  leaderId?: string | null;
 }
 
 class CreateUserDto extends UserAssignmentDto {
