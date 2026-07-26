@@ -7,9 +7,13 @@ import { useIndicatorsSocket } from "@/features/indicadores/hooks/use-indicators
 
 export function DashboardPage() {
   const state = useEmpresasDashboardState();
-  useIndicatorsSocket(state.selectedClient?.id, state.month, () => {
-    void state.loadData();
-  });
+  useIndicatorsSocket(
+    state.clientsVisibleToCurrent.map((client) => client.id),
+    state.month,
+    () => {
+      void state.loadData();
+    },
+  );
 
   return (
     <EmpresasPageShell state={state}>

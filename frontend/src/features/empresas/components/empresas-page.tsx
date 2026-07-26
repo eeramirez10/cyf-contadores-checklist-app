@@ -3,10 +3,21 @@
 import { EmpresaChecklistContent } from "@/features/empresas/components/empresa-checklist-content";
 import { EmpresasPageShell } from "@/features/empresas/components/empresas-page-shell";
 import { useEmpresasDashboardState } from "@/features/empresas/hooks/use-empresas-dashboard-state";
-import { formatCompletedAt, progressBadgeClass } from "@/features/empresas/utils/empresas-helpers";
+import {
+  formatCompletedAt,
+  progressBadgeClass,
+} from "@/features/empresas/utils/empresas-helpers";
+import { useIndicatorsSocket } from "@/features/indicadores/hooks/use-indicators-socket";
 
 export function EmpresasPage() {
   const state = useEmpresasDashboardState();
+  useIndicatorsSocket(
+    state.clientsVisibleToCurrent.map((client) => client.id),
+    state.month,
+    () => {
+      void state.loadData();
+    },
+  );
 
   return (
     <EmpresasPageShell state={state}>
@@ -27,13 +38,17 @@ export function EmpresasPage() {
           <div className="mt-4 grid gap-3 md:grid-cols-[1fr]">
             <input
               value={state.clientsSearchQuery}
-              onChange={(event) => state.setClientsSearchQuery(event.target.value)}
+              onChange={(event) =>
+                state.setClientsSearchQuery(event.target.value)
+              }
               className="soft-input h-10 px-3 text-sm"
               placeholder="Buscar empresa o contador..."
             />
             <select
               value={state.clientsMemberFilter}
-              onChange={(event) => state.setClientsMemberFilter(event.target.value)}
+              onChange={(event) =>
+                state.setClientsMemberFilter(event.target.value)
+              }
               className="soft-input h-10 px-3 text-sm"
             >
               <option value="ALL">Todos los contadores</option>
@@ -56,7 +71,9 @@ export function EmpresasPage() {
                       className="inline-flex items-center gap-1"
                     >
                       <span>Empresa</span>
-                      <span className="text-[11px] text-gray-400">{state.sortMarkerForClients("client")}</span>
+                      <span className="text-[11px] text-gray-400">
+                        {state.sortMarkerForClients("client")}
+                      </span>
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">
@@ -66,7 +83,9 @@ export function EmpresasPage() {
                       className="inline-flex items-center gap-1"
                     >
                       <span>Contador</span>
-                      <span className="text-[11px] text-gray-400">{state.sortMarkerForClients("owner")}</span>
+                      <span className="text-[11px] text-gray-400">
+                        {state.sortMarkerForClients("owner")}
+                      </span>
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">
@@ -76,7 +95,9 @@ export function EmpresasPage() {
                       className="inline-flex items-center gap-1"
                     >
                       <span>Grupo</span>
-                      <span className="text-[11px] text-gray-400">{state.sortMarkerForClients("group")}</span>
+                      <span className="text-[11px] text-gray-400">
+                        {state.sortMarkerForClients("group")}
+                      </span>
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">
@@ -86,7 +107,9 @@ export function EmpresasPage() {
                       className="inline-flex items-center gap-1"
                     >
                       <span>Checks</span>
-                      <span className="text-[11px] text-gray-400">{state.sortMarkerForClients("checks")}</span>
+                      <span className="text-[11px] text-gray-400">
+                        {state.sortMarkerForClients("checks")}
+                      </span>
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">
@@ -96,7 +119,9 @@ export function EmpresasPage() {
                       className="inline-flex items-center gap-1"
                     >
                       <span>Ventas</span>
-                      <span className="text-[11px] text-gray-400">{state.sortMarkerForClients("ventas")}</span>
+                      <span className="text-[11px] text-gray-400">
+                        {state.sortMarkerForClients("ventas")}
+                      </span>
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">
@@ -106,7 +131,9 @@ export function EmpresasPage() {
                       className="inline-flex items-center gap-1"
                     >
                       <span>Produccion</span>
-                      <span className="text-[11px] text-gray-400">{state.sortMarkerForClients("produccion")}</span>
+                      <span className="text-[11px] text-gray-400">
+                        {state.sortMarkerForClients("produccion")}
+                      </span>
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">
@@ -116,7 +143,9 @@ export function EmpresasPage() {
                       className="inline-flex items-center gap-1"
                     >
                       <span>Avance</span>
-                      <span className="text-[11px] text-gray-400">{state.sortMarkerForClients("progress")}</span>
+                      <span className="text-[11px] text-gray-400">
+                        {state.sortMarkerForClients("progress")}
+                      </span>
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">
@@ -126,10 +155,14 @@ export function EmpresasPage() {
                       className="inline-flex items-center gap-1"
                     >
                       <span>Ultimo check</span>
-                      <span className="text-[11px] text-gray-400">{state.sortMarkerForClients("lastCompletedAt")}</span>
+                      <span className="text-[11px] text-gray-400">
+                        {state.sortMarkerForClients("lastCompletedAt")}
+                      </span>
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-700">Accion</th>
+                  <th className="px-4 py-3 text-center font-semibold text-gray-700">
+                    Accion
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -143,14 +176,24 @@ export function EmpresasPage() {
                           : "odd:bg-white even:bg-gray-50/40 hover:bg-gray-50"
                       }`}
                     >
-                      <td className="px-4 py-3 font-medium text-gray-800">{row.client.name}</td>
-                      <td className="px-4 py-3 text-gray-600">{row.ownerName}</td>
-                      <td className="px-4 py-3 text-gray-600">{row.groupName}</td>
+                      <td className="px-4 py-3 font-medium text-gray-800">
+                        {row.client.name}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {row.ownerName}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {row.groupName}
+                      </td>
                       <td className="px-4 py-3 text-gray-600">
                         {row.completedCount}/{row.totalCount}
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{row.ventas.toFixed(1)}%</td>
-                      <td className="px-4 py-3 text-gray-600">{row.produccion.toFixed(1)}%</td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {row.ventas.toFixed(1)}%
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {row.produccion.toFixed(1)}%
+                      </td>
                       <td className="px-4 py-3">
                         <span
                           className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${progressBadgeClass(row.progress)}`}
@@ -164,7 +207,9 @@ export function EmpresasPage() {
                       <td className="px-4 py-3 text-center">
                         <button
                           type="button"
-                          onClick={() => state.openChecklistModal(row.client.id)}
+                          onClick={() =>
+                            state.openChecklistModal(row.client.id)
+                          }
                           className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
                         >
                           Ver checklist
@@ -193,7 +238,11 @@ export function EmpresasPage() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => state.setClientsPage(Math.max(1, state.clientsCurrentPage - 1))}
+                onClick={() =>
+                  state.setClientsPage(
+                    Math.max(1, state.clientsCurrentPage - 1),
+                  )
+                }
                 disabled={state.clientsCurrentPage <= 1}
                 className="rounded-lg border border-[var(--line)] px-3 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -201,7 +250,14 @@ export function EmpresasPage() {
               </button>
               <button
                 type="button"
-                onClick={() => state.setClientsPage(Math.min(state.clientsTotalPages, state.clientsCurrentPage + 1))}
+                onClick={() =>
+                  state.setClientsPage(
+                    Math.min(
+                      state.clientsTotalPages,
+                      state.clientsCurrentPage + 1,
+                    ),
+                  )
+                }
                 disabled={state.clientsCurrentPage >= state.clientsTotalPages}
                 className="rounded-lg border border-[var(--line)] px-3 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -210,8 +266,6 @@ export function EmpresasPage() {
             </div>
           </div>
         </article>
-
-     
       </section>
 
       {state.checklistModalClient ? (
@@ -225,8 +279,12 @@ export function EmpresasPage() {
           >
             <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4">
               <div>
-                <p className="status-pill text-[10px] text-[var(--foreground-soft)]">Checklist</p>
-                <h3 className="display-title text-xl font-semibold">{state.checklistModalClient.name}</h3>
+                <p className="status-pill text-[10px] text-[var(--foreground-soft)]">
+                  Checklist
+                </p>
+                <h3 className="display-title text-xl font-semibold">
+                  {state.checklistModalClient.name}
+                </h3>
               </div>
               <button
                 type="button"
