@@ -1,5 +1,6 @@
 import { user_role } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
+import * as argon2 from 'argon2';
 import { type UserProfileRecord, UsersRepository } from './users.repository';
 import { UsersService } from './users.service';
 import { PrismaService } from '../database/prisma.service';
@@ -13,6 +14,14 @@ function readPrismaData(input: unknown): object {
     throw new Error('Expected Prisma create data');
   }
   return data;
+}
+
+function readPasswordHash(input: unknown): string {
+  const data = readPrismaData(input);
+  if (!('password_hash' in data) || typeof data.password_hash !== 'string') {
+    throw new Error('Expected Prisma password hash');
+  }
+  return data.password_hash;
 }
 
 describe('UsersService', () => {
@@ -150,5 +159,30 @@ describe('UsersService', () => {
       group_id: null,
       leader_id: null,
     });
+  });
+
+  it('hashes a replacement password before updating a user', async () => {
+    prisma.profiles.findUnique.mockResolvedValue({
+      id: 'member-id',
+      name: 'Contador Local',
+      role: user_role.MEMBER,
+      group_id: null,
+      leader_id: null,
+    });
+    let updateInput: unknown;
+    prisma.profiles.update.mockImplementation((input: unknown) => {
+      updateInput = input;
+      return Promise.resolve({ id: 'member-id' });
+    });
+
+    await usersService.updateAdminUser('ADMIN', 'member-id', {
+      password: 'new-password-123',
+    });
+
+    const passwordHash = readPasswordHash(updateInput);
+    expect(passwordHash).not.toBe('new-password-123');
+    await expect(argon2.verify(passwordHash, 'new-password-123')).resolves.toBe(
+      true,
+    );
   });
 });

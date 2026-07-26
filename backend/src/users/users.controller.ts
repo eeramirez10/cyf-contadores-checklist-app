@@ -49,6 +49,11 @@ class UpdateUserDto extends UserAssignmentDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  password?: string;
 }
 
 class CreateGroupDto {

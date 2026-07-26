@@ -35,6 +35,7 @@ export function UsersManagementPage() {
   const [editingGroupId, setEditingGroupId] = useState("");
   const [editingLeaderId, setEditingLeaderId] = useState("");
   const [editingIsActive, setEditingIsActive] = useState(true);
+  const [editingPassword, setEditingPassword] = useState("");
 
   const leaders = useMemo(
     () => users.filter((item) => item.role === "LEADER" && item.is_active),
@@ -131,9 +132,13 @@ export function UsersManagementPage() {
     setEditingGroupId(managedUser.group_id ?? "");
     setEditingLeaderId(managedUser.leader_id ?? "");
     setEditingIsActive(managedUser.is_active);
+    setEditingPassword("");
   };
 
-  const cancelEditing = () => setEditingUser(null);
+  const cancelEditing = () => {
+    setEditingUser(null);
+    setEditingPassword("");
+  };
 
   const updateUser = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -148,6 +153,7 @@ export function UsersManagementPage() {
           groupId: editingRole === "ADMIN" ? null : editingGroupId || null,
           leaderId: editingRole === "MEMBER" ? editingLeaderId || null : null,
           isActive: editingIsActive,
+          password: editingPassword || undefined,
         }),
       });
       toast.success("Usuario actualizado.");
@@ -341,6 +347,15 @@ export function UsersManagementPage() {
             <option value="LEADER">Lider</option>
             <option value="ADMIN">Administrador</option>
           </select>
+          <input
+            type="password"
+            minLength={8}
+            autoComplete="new-password"
+            value={editingPassword}
+            onChange={(event) => setEditingPassword(event.target.value)}
+            className="soft-input px-3 py-2"
+            placeholder="Nueva contraseña (opcional)"
+          />
           {editingRole !== "ADMIN" ? (
             <select
               value={editingGroupId}

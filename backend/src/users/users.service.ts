@@ -90,7 +90,7 @@ export class UsersService {
   async updateAdminUser(
     requesterRole: string,
     userId: string,
-    data: Partial<UserInput> & { isActive?: boolean },
+    data: Partial<UserInput> & { isActive?: boolean; password?: string },
   ) {
     if (requesterRole !== 'ADMIN') throw new ForbiddenException();
     const current = await this.prisma.profiles.findUnique({
@@ -123,6 +123,9 @@ export class UsersService {
         group_id: assignment.groupId,
         leader_id: assignment.leaderId,
         ...(data.isActive === undefined ? {} : { is_active: data.isActive }),
+        ...(data.password === undefined
+          ? {}
+          : { password_hash: await argon2.hash(data.password) }),
       },
       select: {
         id: true,
