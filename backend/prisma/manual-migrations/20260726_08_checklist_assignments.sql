@@ -1,6 +1,6 @@
 create table if not exists public.checklist_assignments (
   id uuid primary key default gen_random_uuid(),
-  month text not null check (month ~ '^\\d{4}-(0[1-9]|1[0-2])$'),
+  month text not null check (month ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),
   client_id uuid not null references public.clients(id) on delete cascade,
   template_id uuid not null references public.activity_templates(id),
   assignee_id uuid not null references public.profiles(id),
