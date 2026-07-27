@@ -49,6 +49,12 @@ Las areas ahora son un catalogo independiente de las actividades. La migracion c
 pnpm db:apply:activity-areas
 ```
 
+Si la base tenia la restriccion antigua de solo `VENTAS` y `PRODUCCION`, aplica despues:
+
+```bash
+pnpm db:apply:dynamic-activity-areas
+```
+
 ## Verificacion
 
 ```bash
