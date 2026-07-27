@@ -8,6 +8,8 @@ import { ConfigService } from '@nestjs/config';
 export function configureApp(app: INestApplication): void {
   const configService = app.get(ConfigService);
   const corsOrigins = configService.get<string[]>('app.corsOrigins') ?? [];
+  // `true` reflects the request origin, allowing a separately deployed frontend.
+  const corsOrigin = corsOrigins.includes('*') ? true : corsOrigins;
 
   app.setGlobalPrefix('api');
   app.enableVersioning({
@@ -15,7 +17,7 @@ export function configureApp(app: INestApplication): void {
     defaultVersion: '1',
   });
   app.enableCors({
-    origin: corsOrigins,
+    origin: corsOrigin,
     credentials: true,
   });
   app.useGlobalPipes(

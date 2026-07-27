@@ -8,3 +8,4 @@
 /backend/coverage/
 /backend/.env*
 !/backend/.env.example
+!/backend/.env.production.example

@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   document_channel,
   document_delivery_status,
@@ -50,6 +51,7 @@ export class DocumentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly permissions: PermissionsService,
+    private readonly config: ConfigService,
   ) {}
 
   async listClients(actor: RequestActor) {
@@ -422,7 +424,7 @@ export class DocumentsService {
       mimeType: document.mime_type,
       sizeBytes: Number(document.size_bytes),
       publicToken: document.public_token,
-      publicUrl: process.env.PUBLIC_BASE_URL?.trim()
+      publicUrl: this.config.get<string>('app.publicBaseUrl')
         ? this.publicUrl(document.public_token)
         : null,
       createdAt: document.created_at.toISOString(),
@@ -501,7 +503,7 @@ export class DocumentsService {
   }
 
   private publicUrl(publicToken: string): string {
-    const baseUrl = process.env.PUBLIC_BASE_URL?.trim();
+    const baseUrl = this.config.get<string>('app.publicBaseUrl');
     if (!baseUrl) {
       throw new BadRequestException(
         'Falta PUBLIC_BASE_URL para compartir el documento',

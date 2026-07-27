@@ -9,6 +9,7 @@ coverage/
 # Local environment configuration
 .env*
 !.env.example
+!.env.production.example
 
 # Logs and operating-system files
 *.log

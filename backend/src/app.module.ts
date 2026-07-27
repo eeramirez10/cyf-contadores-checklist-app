@@ -46,6 +46,10 @@ import { AssignmentsModule } from './assignments/assignments.module';
           .valid('lax', 'strict', 'none')
           .default('lax'),
         AUTH_COOKIE_DOMAIN: Joi.string().hostname().optional(),
+        PUBLIC_BASE_URL: Joi.string()
+          .uri({ scheme: ['http', 'https'] })
+          .allow('')
+          .optional(),
       }),
       validationOptions: {
         abortEarly: true,

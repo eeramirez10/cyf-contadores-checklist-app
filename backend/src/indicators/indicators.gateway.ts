@@ -39,13 +39,14 @@ export class IndicatorsGateway implements OnGatewayConnection {
     private readonly permissions: PermissionsService,
     config: ConfigService,
   ) {
+    const corsOrigins = config.get<string[]>('app.corsOrigins') ?? [];
     this.cors = {
-      origin: config.get<string[]>('app.corsOrigins') ?? [],
+      origin: corsOrigins.includes('*') ? true : corsOrigins,
       credentials: true,
     };
   }
 
-  private readonly cors: { origin: string[]; credentials: boolean };
+  private readonly cors: { origin: true | string[]; credentials: boolean };
 
   afterInit(server: Server | Namespace): void {
     // A namespaced Nest gateway receives a Namespace, which exposes the root IO server.

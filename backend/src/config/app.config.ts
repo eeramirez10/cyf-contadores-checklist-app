@@ -11,4 +11,5 @@ export const appConfig = registerAs('app', () => ({
     .filter(Boolean),
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: Number.parseInt(process.env.PORT ?? '3002', 10),
+  publicBaseUrl: process.env.PUBLIC_BASE_URL?.trim() || undefined,
 }));
