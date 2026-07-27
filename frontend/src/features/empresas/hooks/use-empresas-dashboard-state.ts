@@ -1033,15 +1033,15 @@ export function useEmpresasDashboardState() {
     const trimmedName = newTemplateName.trim();
     if (!trimmedName) {
       toast.warning("Escribe nombre para actividad estandar.");
-      return;
+      return false;
     }
     if (!newTemplateAreaId) {
       toast.warning("Crea o selecciona un area antes de agregar actividades.");
-      return;
+      return false;
     }
     if (newTemplateWeight <= 0 || newTemplateWeight > 100) {
       toast.warning("El peso debe estar entre 1 y 100.");
-      return;
+      return false;
     }
     try {
       const data = await backendFetch<DbTemplateRow>("/templates", {
@@ -1058,12 +1058,14 @@ export function useEmpresasDashboardState() {
       setNewTemplateAreaId("");
       setNewTemplateWeight(10);
       toast.success("Actividad estandar creada.");
+      return true;
     } catch (error) {
       toast.error(
         `No se pudo crear actividad estandar: ${
           error instanceof Error ? error.message : "Error desconocido"
         }`,
       );
+      return false;
     }
   };
 
