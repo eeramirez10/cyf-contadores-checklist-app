@@ -29,6 +29,8 @@ export function UsersManagementPage() {
   const [groupId, setGroupId] = useState("");
   const [leaderId, setLeaderId] = useState("");
   const [newGroupName, setNewGroupName] = useState("");
+  const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [editingName, setEditingName] = useState("");
   const [editingRole, setEditingRole] = useState<ManagedRole>("MEMBER");
@@ -97,6 +99,7 @@ export function UsersManagementPage() {
       setRole("MEMBER");
       setGroupId("");
       setLeaderId("");
+      setIsCreateUserOpen(false);
       toast.success("Usuario local creado.");
       await load();
     } catch (error) {
@@ -116,6 +119,7 @@ export function UsersManagementPage() {
       });
       setNewGroupName("");
       setGroupId(group.id);
+      setIsCreateGroupOpen(false);
       toast.success("Grupo creado.");
       await load();
     } catch (error) {
@@ -138,6 +142,21 @@ export function UsersManagementPage() {
   const cancelEditing = () => {
     setEditingUser(null);
     setEditingPassword("");
+  };
+
+  const closeCreateUser = () => {
+    setName("");
+    setEmail("");
+    setPassword("");
+    setRole("MEMBER");
+    setGroupId("");
+    setLeaderId("");
+    setIsCreateUserOpen(false);
+  };
+
+  const closeCreateGroup = () => {
+    setNewGroupName("");
+    setIsCreateGroupOpen(false);
   };
 
   const updateUser = async (event: React.FormEvent) => {
@@ -185,99 +204,32 @@ export function UsersManagementPage() {
 
   return (
     <section className="grid gap-6">
-      <div className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
-        <form
-          onSubmit={createUser}
-          className="surface grid gap-3 rounded-2xl p-5 md:grid-cols-2"
-        >
-          <h2 className="display-title col-span-full text-xl font-semibold">
-            Crear usuario local
-          </h2>
-          <input
-            required
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            className="soft-input px-3 py-2"
-            placeholder="Nombre"
-          />
-          <input
-            required
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="soft-input px-3 py-2"
-            placeholder="correo@empresa.com"
-          />
-          <input
-            required
-            minLength={8}
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="soft-input px-3 py-2"
-            placeholder="Contraseña"
-          />
-          <select
-            value={role}
-            onChange={(event) => setRole(event.target.value as ManagedRole)}
-            className="soft-input px-3 py-2"
-          >
-            <option value="MEMBER">Contador</option>
-            <option value="LEADER">Lider</option>
-            <option value="ADMIN">Administrador</option>
-          </select>
-          {role !== "ADMIN" ? (
-            <select
-              value={groupId}
-              onChange={(event) => setGroupId(event.target.value)}
-              className="soft-input px-3 py-2"
-            >
-              <option value="">Sin grupo</option>
-              {groups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
-          ) : null}
-          {role === "MEMBER" ? (
-            <select
-              value={leaderId}
-              onChange={(event) => setLeaderId(event.target.value)}
-              className="soft-input px-3 py-2"
-            >
-              <option value="">Sin lider</option>
-              {leaders
-                .filter((leader) => !groupId || leader.group_id === groupId)
-                .map((leader) => (
-                  <option key={leader.id} value={leader.id}>
-                    {leader.name}
-                  </option>
-                ))}
-            </select>
-          ) : null}
-          <button className="rounded-xl bg-[#3641f5] px-4 py-2 font-medium text-white">
-            Crear usuario
-          </button>
-        </form>
-        <form
-          onSubmit={createGroup}
-          className="surface grid content-start gap-3 rounded-2xl p-5"
-        >
-          <h2 className="display-title text-xl font-semibold">Nuevo grupo</h2>
-          <input
-            required
-            value={newGroupName}
-            onChange={(event) => setNewGroupName(event.target.value)}
-            className="soft-input px-3 py-2"
-            placeholder="Ej. Grupo Fiscal Norte"
-          />
-          <button className="rounded-xl border border-[var(--line)] px-4 py-2 font-medium">
-            Crear grupo
-          </button>
-        </form>
-      </div>
       <div className="surface overflow-auto rounded-2xl p-5">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="display-title text-xl font-semibold">Usuarios</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              {users.length} usuario{users.length === 1 ? "" : "s"} registrado
+              {users.length === 1 ? "" : "s"}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => setIsCreateGroupOpen(true)}
+              className="rounded-xl border border-[var(--line)] px-4 py-2 font-medium"
+            >
+              Nuevo grupo
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsCreateUserOpen(true)}
+              className="rounded-xl bg-[#3641f5] px-4 py-2 font-medium text-white"
+            >
+              Nuevo usuario
+            </button>
+          </div>
+        </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-gray-500">
@@ -321,96 +273,263 @@ export function UsersManagementPage() {
           </tbody>
         </table>
       </div>
-      {editingUser ? (
-        <form
-          onSubmit={updateUser}
-          className="surface grid gap-3 rounded-2xl p-5 md:grid-cols-2"
-        >
-          <h2 className="display-title col-span-full text-xl font-semibold">
-            Editar usuario: {editingUser.email ?? editingUser.name}
-          </h2>
-          <input
-            required
-            value={editingName}
-            onChange={(event) => setEditingName(event.target.value)}
-            className="soft-input px-3 py-2"
-            placeholder="Nombre"
-          />
-          <select
-            value={editingRole}
-            onChange={(event) =>
-              setEditingRole(event.target.value as ManagedRole)
-            }
-            className="soft-input px-3 py-2"
+      {isCreateUserOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4">
+          <form
+            onSubmit={createUser}
+            className="surface grid w-full max-w-2xl gap-4 rounded-2xl p-6 md:grid-cols-2"
           >
-            <option value="MEMBER">Contador</option>
-            <option value="LEADER">Lider</option>
-            <option value="ADMIN">Administrador</option>
-          </select>
-          <input
-            type="password"
-            minLength={8}
-            autoComplete="new-password"
-            value={editingPassword}
-            onChange={(event) => setEditingPassword(event.target.value)}
-            className="soft-input px-3 py-2"
-            placeholder="Nueva contraseña (opcional)"
-          />
-          {editingRole !== "ADMIN" ? (
+            <div className="col-span-full flex items-start justify-between gap-4">
+              <div>
+                <h2 className="display-title text-xl font-semibold">
+                  Nuevo usuario
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Crea el acceso y asigna su grupo de trabajo.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeCreateUser}
+                className="rounded-lg px-2 py-1 text-xl leading-none text-gray-500"
+                aria-label="Cerrar"
+              >
+                x
+              </button>
+            </div>
+            <input
+              required
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="soft-input px-3 py-2"
+              placeholder="Nombre"
+            />
+            <input
+              required
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="soft-input px-3 py-2"
+              placeholder="correo@empresa.com"
+            />
+            <input
+              required
+              minLength={8}
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="soft-input px-3 py-2"
+              placeholder="Contraseña"
+            />
             <select
-              value={editingGroupId}
-              onChange={(event) => setEditingGroupId(event.target.value)}
+              value={role}
+              onChange={(event) => setRole(event.target.value as ManagedRole)}
               className="soft-input px-3 py-2"
             >
-              <option value="">Sin grupo</option>
-              {groups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
+              <option value="MEMBER">Contador</option>
+              <option value="LEADER">Lider</option>
+              <option value="ADMIN">Administrador</option>
             </select>
-          ) : null}
-          {editingRole === "MEMBER" ? (
-            <select
-              value={editingLeaderId}
-              onChange={(event) => setEditingLeaderId(event.target.value)}
-              className="soft-input px-3 py-2"
-            >
-              <option value="">Sin lider</option>
-              {leaders
-                .filter(
-                  (leader) =>
-                    leader.id !== editingUser.id &&
-                    (!editingGroupId || leader.group_id === editingGroupId),
-                )
-                .map((leader) => (
-                  <option key={leader.id} value={leader.id}>
-                    {leader.name}
+            {role !== "ADMIN" ? (
+              <select
+                value={groupId}
+                onChange={(event) => setGroupId(event.target.value)}
+                className="soft-input px-3 py-2"
+              >
+                <option value="">Sin grupo</option>
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
                   </option>
                 ))}
-            </select>
-          ) : null}
-          <label className="flex items-center gap-2 text-sm font-medium">
+              </select>
+            ) : null}
+            {role === "MEMBER" ? (
+              <select
+                value={leaderId}
+                onChange={(event) => setLeaderId(event.target.value)}
+                className="soft-input px-3 py-2"
+              >
+                <option value="">Sin lider</option>
+                {leaders
+                  .filter((leader) => !groupId || leader.group_id === groupId)
+                  .map((leader) => (
+                    <option key={leader.id} value={leader.id}>
+                      {leader.name}
+                    </option>
+                  ))}
+              </select>
+            ) : null}
+            <div className="col-span-full flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeCreateUser}
+                className="rounded-xl border border-[var(--line)] px-4 py-2 font-medium"
+              >
+                Cancelar
+              </button>
+              <button className="rounded-xl bg-[#3641f5] px-4 py-2 font-medium text-white">
+                Crear usuario
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+      {isCreateGroupOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4">
+          <form
+            onSubmit={createGroup}
+            className="surface grid w-full max-w-md gap-4 rounded-2xl p-6"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="display-title text-xl font-semibold">
+                  Nuevo grupo
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Organiza a los usuarios por equipo de trabajo.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeCreateGroup}
+                className="rounded-lg px-2 py-1 text-xl leading-none text-gray-500"
+                aria-label="Cerrar"
+              >
+                x
+              </button>
+            </div>
             <input
-              type="checkbox"
-              checked={editingIsActive}
-              onChange={(event) => setEditingIsActive(event.target.checked)}
+              required
+              autoFocus
+              value={newGroupName}
+              onChange={(event) => setNewGroupName(event.target.value)}
+              className="soft-input px-3 py-2"
+              placeholder="Ej. Grupo Fiscal Norte"
             />
-            Usuario activo
-          </label>
-          <div className="col-span-full flex flex-wrap gap-3">
-            <button className="rounded-xl bg-[#3641f5] px-4 py-2 font-medium text-white">
-              Guardar cambios
-            </button>
-            <button
-              type="button"
-              onClick={cancelEditing}
-              className="rounded-xl border border-[var(--line)] px-4 py-2 font-medium"
+            <div className="flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeCreateGroup}
+                className="rounded-xl border border-[var(--line)] px-4 py-2 font-medium"
+              >
+                Cancelar
+              </button>
+              <button className="rounded-xl bg-[#3641f5] px-4 py-2 font-medium text-white">
+                Crear grupo
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+      {editingUser ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4">
+          <form
+            onSubmit={updateUser}
+            className="surface grid w-full max-w-2xl gap-4 rounded-2xl p-6 md:grid-cols-2"
+          >
+            <div className="col-span-full flex items-start justify-between gap-4">
+              <div>
+                <h2 className="display-title text-xl font-semibold">
+                  Editar usuario
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  {editingUser.email ?? editingUser.name}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={cancelEditing}
+                className="rounded-lg px-2 py-1 text-xl leading-none text-gray-500"
+                aria-label="Cerrar"
+              >
+                x
+              </button>
+            </div>
+            <input
+              required
+              value={editingName}
+              onChange={(event) => setEditingName(event.target.value)}
+              className="soft-input px-3 py-2"
+              placeholder="Nombre"
+            />
+            <select
+              value={editingRole}
+              onChange={(event) =>
+                setEditingRole(event.target.value as ManagedRole)
+              }
+              className="soft-input px-3 py-2"
             >
-              Cancelar
-            </button>
-          </div>
-        </form>
+              <option value="MEMBER">Contador</option>
+              <option value="LEADER">Lider</option>
+              <option value="ADMIN">Administrador</option>
+            </select>
+            <input
+              type="password"
+              minLength={8}
+              autoComplete="new-password"
+              value={editingPassword}
+              onChange={(event) => setEditingPassword(event.target.value)}
+              className="soft-input px-3 py-2"
+              placeholder="Nueva contraseña (opcional)"
+            />
+            {editingRole !== "ADMIN" ? (
+              <select
+                value={editingGroupId}
+                onChange={(event) => setEditingGroupId(event.target.value)}
+                className="soft-input px-3 py-2"
+              >
+                <option value="">Sin grupo</option>
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+            {editingRole === "MEMBER" ? (
+              <select
+                value={editingLeaderId}
+                onChange={(event) => setEditingLeaderId(event.target.value)}
+                className="soft-input px-3 py-2"
+              >
+                <option value="">Sin lider</option>
+                {leaders
+                  .filter(
+                    (leader) =>
+                      leader.id !== editingUser.id &&
+                      (!editingGroupId || leader.group_id === editingGroupId),
+                  )
+                  .map((leader) => (
+                    <option key={leader.id} value={leader.id}>
+                      {leader.name}
+                    </option>
+                  ))}
+              </select>
+            ) : null}
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={editingIsActive}
+                onChange={(event) => setEditingIsActive(event.target.checked)}
+              />
+              Usuario activo
+            </label>
+            <div className="col-span-full flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={cancelEditing}
+                className="rounded-xl border border-[var(--line)] px-4 py-2 font-medium"
+              >
+                Cancelar
+              </button>
+              <button className="rounded-xl bg-[#3641f5] px-4 py-2 font-medium text-white">
+                Guardar cambios
+              </button>
+            </div>
+          </form>
+        </div>
       ) : null}
     </section>
   );
