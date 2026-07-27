@@ -31,6 +31,14 @@ export type DbTemplateRow = {
   created_by: string;
 };
 
+export type DbChecklistTemplateRow = {
+  id: string;
+  name: string;
+  scheduled_months: number[];
+  is_active: boolean;
+  activities: { activity_template_id: string }[];
+};
+
 export type DbClientRow = {
   id: string;
   name: string;

@@ -7,6 +7,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   Min,
   MinLength,
@@ -62,6 +63,20 @@ class UpdateTemplateDto {
   scheduledMonths?: number[];
 }
 
+class ChecklistTemplateDto {
+  @IsString() @MinLength(1) name: string;
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('4', { each: true })
+  activityIds: string[];
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  @Max(12, { each: true })
+  scheduledMonths: number[];
+}
+
 type UserRequest = Request & { user: { id: string; role: string } };
 
 @Controller({ path: 'templates', version: '1' })
@@ -76,6 +91,23 @@ export class TemplatesController {
   @Post('areas')
   createArea(@Body() dto: CreateAreaDto, @Req() request: UserRequest) {
     return this.templates.createArea(request.user.role, dto.name);
+  }
+
+  @Post('checklists')
+  createChecklistTemplate(
+    @Body() dto: ChecklistTemplateDto,
+    @Req() request: UserRequest,
+  ) {
+    return this.templates.createChecklistTemplate(request.user.role, dto);
+  }
+
+  @Patch('checklists/:id')
+  updateChecklistTemplate(
+    @Param('id') id: string,
+    @Body() dto: ChecklistTemplateDto,
+    @Req() request: UserRequest,
+  ) {
+    return this.templates.updateChecklistTemplate(request.user.role, id, dto);
   }
 
   @Patch(':id')

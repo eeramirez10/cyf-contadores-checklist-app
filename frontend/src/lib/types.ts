@@ -41,6 +41,14 @@ export type ActivityTemplate = {
   createdBy: string;
 };
 
+export type ChecklistTemplate = {
+  id: string;
+  name: string;
+  scheduledMonths: number[];
+  isActive: boolean;
+  activityIds: string[];
+};
+
 export type ClientActivity = {
   id: string;
   clientId: string;

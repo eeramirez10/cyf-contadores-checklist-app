@@ -19,6 +19,12 @@ type UpdateTemplateInput = {
   scheduledMonths?: number[];
 };
 
+type ChecklistTemplateInput = {
+  name: string;
+  scheduledMonths: number[];
+  activityIds: string[];
+};
+
 @Injectable()
 export class TemplatesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -108,6 +114,99 @@ export class TemplatesService {
         created_by: true,
       },
     });
+  }
+
+  async createChecklistTemplate(
+    actorRole: string,
+    input: ChecklistTemplateInput,
+  ) {
+    this.requireAdmin(actorRole);
+    const activityIds = await this.validActivityIds(input.activityIds);
+    return this.prisma.$transaction(async (transaction) => {
+      const checklistTemplate = await transaction.checklist_templates.create({
+        data: {
+          name: input.name.trim(),
+          scheduled_months: this.normalizeScheduledMonths(
+            input.scheduledMonths,
+          ),
+        },
+      });
+      await transaction.checklist_template_activities.createMany({
+        data: activityIds.map((activityId, index) => ({
+          checklist_template_id: checklistTemplate.id,
+          activity_template_id: activityId,
+          display_order: index + 1,
+        })),
+      });
+      return this.checklistTemplate(checklistTemplate.id, transaction);
+    });
+  }
+
+  async updateChecklistTemplate(
+    actorRole: string,
+    id: string,
+    input: ChecklistTemplateInput,
+  ) {
+    this.requireAdmin(actorRole);
+    const activityIds = await this.validActivityIds(input.activityIds);
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.checklist_templates.update({
+        where: { id },
+        data: {
+          name: input.name.trim(),
+          scheduled_months: this.normalizeScheduledMonths(
+            input.scheduledMonths,
+          ),
+        },
+      });
+      await transaction.checklist_template_activities.deleteMany({
+        where: { checklist_template_id: id },
+      });
+      await transaction.checklist_template_activities.createMany({
+        data: activityIds.map((activityId, index) => ({
+          checklist_template_id: id,
+          activity_template_id: activityId,
+          display_order: index + 1,
+        })),
+      });
+    });
+    return this.checklistTemplate(id, this.prisma);
+  }
+
+  private async checklistTemplate(
+    id: string,
+    prisma: Pick<PrismaService, 'checklist_templates'>,
+  ) {
+    return prisma.checklist_templates.findUniqueOrThrow({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        scheduled_months: true,
+        is_active: true,
+        activities: {
+          select: { activity_template_id: true },
+          orderBy: { display_order: 'asc' },
+        },
+      },
+    });
+  }
+
+  private async validActivityIds(activityIds: string[]): Promise<string[]> {
+    const normalized = [...new Set(activityIds)];
+    if (!normalized.length) {
+      throw new BadRequestException(
+        'La plantilla requiere al menos una actividad',
+      );
+    }
+    const activities = await this.prisma.activity_templates.findMany({
+      where: { id: { in: normalized }, is_active: true },
+      select: { id: true },
+    });
+    if (activities.length !== normalized.length) {
+      throw new BadRequestException('Una o mas actividades no estan activas');
+    }
+    return normalized;
   }
 
   private requireAdmin(role: string): void {

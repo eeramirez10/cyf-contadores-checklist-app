@@ -31,7 +31,7 @@ type CreateCompanyInput = {
     isPrimary?: boolean;
   }[];
   memberId: string;
-  templateIds: string[];
+  checklistTemplateIds: string[];
 };
 
 type PostalCodeResponse = {
@@ -58,21 +58,76 @@ export class CompaniesService {
 
   async create(actor: RequestActor, input: CreateCompanyInput) {
     await this.permissions.canManageMember(actor, input.memberId);
-    const templateIds = [...new Set(input.templateIds)];
-    const templates = await this.prisma.activity_templates.findMany({
-      where: { id: { in: templateIds }, is_active: true },
+    const checklistTemplateIds = [...new Set(input.checklistTemplateIds)];
+    const checklistTemplates = await this.prisma.checklist_templates.findMany({
+      where: { id: { in: checklistTemplateIds }, is_active: true },
       select: {
         id: true,
-        name: true,
-        area: true,
-        default_weight: true,
         scheduled_months: true,
-        display_order: true,
+        activities: {
+          select: {
+            display_order: true,
+            activity_template: {
+              select: {
+                id: true,
+                name: true,
+                area: true,
+                default_weight: true,
+                is_active: true,
+              },
+            },
+          },
+        },
       },
-      orderBy: { display_order: 'asc' },
     });
-    if (templates.length !== templateIds.length) {
-      throw new BadRequestException('Una o mas actividades no estan activas');
+    if (checklistTemplates.length !== checklistTemplateIds.length) {
+      throw new BadRequestException('Una o mas plantillas no estan activas');
+    }
+    const activitiesById = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        area: string;
+        weight: unknown;
+        months: number[];
+        displayOrder: number;
+      }
+    >();
+    for (const checklistTemplate of checklistTemplates) {
+      for (const membership of checklistTemplate.activities) {
+        const activity = membership.activity_template;
+        if (!activity.is_active) {
+          throw new BadRequestException(
+            'Una o mas actividades no estan activas',
+          );
+        }
+        const existing = activitiesById.get(activity.id);
+        activitiesById.set(activity.id, {
+          id: activity.id,
+          name: activity.name,
+          area: activity.area,
+          weight: activity.default_weight,
+          months: [
+            ...new Set([
+              ...(existing?.months ?? []),
+              ...checklistTemplate.scheduled_months,
+            ]),
+          ].sort((a, b) => a - b),
+          displayOrder: Math.min(
+            existing?.displayOrder ?? Infinity,
+            membership.display_order,
+          ),
+        });
+      }
+    }
+    const activities = [...activitiesById.values()].sort(
+      (left, right) => left.displayOrder - right.displayOrder,
+    );
+    if (!activities.length) {
+      throw new BadRequestException(
+        'Las plantillas no contienen actividades activas',
+      );
     }
     const contacts = input.contacts
       .map((contact, index) => ({
@@ -130,14 +185,20 @@ export class CompaniesService {
         })),
       });
       await transaction.client_activities.createMany({
-        data: templates.map((template, index) => ({
+        data: activities.map((activity, index) => ({
           client_id: client.id,
-          template_id: template.id,
-          name: template.name,
-          area: template.area,
-          weight: template.default_weight,
-          scheduled_months: template.scheduled_months,
+          template_id: activity.id,
+          name: activity.name,
+          area: activity.area,
+          weight: activity.weight as never,
+          scheduled_months: activity.months,
           display_order: index + 1,
+        })),
+      });
+      await transaction.client_checklist_templates.createMany({
+        data: checklistTemplates.map((template) => ({
+          client_id: client.id,
+          checklist_template_id: template.id,
         })),
       });
       return { clientId: client.id };

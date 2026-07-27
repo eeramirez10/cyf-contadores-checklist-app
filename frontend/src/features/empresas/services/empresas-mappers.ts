@@ -3,11 +3,13 @@ import type {
   ChecklistEntry,
   Client,
   ClientActivity,
+  ChecklistTemplate,
   Group,
   User,
 } from "@/lib/types";
 import type {
   DbChecklistRow,
+  DbChecklistTemplateRow,
   DbClientActivityRow,
   DbClientRow,
   DbGroupRow,
@@ -38,6 +40,16 @@ export const normalizeTemplate = (row: DbTemplateRow): ActivityTemplate => ({
   displayOrder: row.display_order,
   isActive: row.is_active,
   createdBy: row.created_by,
+});
+
+export const normalizeChecklistTemplate = (
+  row: DbChecklistTemplateRow,
+): ChecklistTemplate => ({
+  id: row.id,
+  name: row.name,
+  scheduledMonths: row.scheduled_months,
+  isActive: row.is_active,
+  activityIds: row.activities.map((activity) => activity.activity_template_id),
 });
 
 export const normalizeClient = (row: DbClientRow): Client => ({

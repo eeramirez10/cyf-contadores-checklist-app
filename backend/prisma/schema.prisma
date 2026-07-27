@@ -524,6 +524,7 @@ model activity_templates {
   activity_areas    activity_areas?     @relation(fields: [area_id], references: [id], onUpdate: NoAction)
   checklist_entries checklist_entries[]
   client_activities client_activities[]
+  checklist_template_memberships checklist_template_activities[]
 
   @@schema("public")
 }
@@ -535,6 +536,30 @@ model activity_areas {
   created_at         DateTime             @default(now()) @db.Timestamptz(6)
   activity_templates activity_templates[]
 
+  @@schema("public")
+}
+
+model checklist_templates {
+  id               String                          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String                          @unique
+  scheduled_months Int[]                           @default([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) @db.SmallInt
+  is_active        Boolean                         @default(true)
+  created_at       DateTime                        @default(now()) @db.Timestamptz(6)
+  activities       checklist_template_activities[]
+  client_assignments client_checklist_templates[]
+
+  @@schema("public")
+}
+
+model checklist_template_activities {
+  checklist_template_id String              @db.Uuid
+  activity_template_id  String              @db.Uuid
+  display_order         Int                 @default(0)
+  checklist_template    checklist_templates @relation(fields: [checklist_template_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  activity_template     activity_templates  @relation(fields: [activity_template_id], references: [id], onUpdate: NoAction)
+
+  @@id([checklist_template_id, activity_template_id])
+  @@index([activity_template_id])
   @@schema("public")
 }
 
@@ -605,7 +630,19 @@ model clients {
   profiles          profiles            @relation(fields: [member_id], references: [id], onUpdate: NoAction)
   contacts          contacts[]
   documents         documents[]
+  checklist_template_assignments client_checklist_templates[]
 
+  @@schema("public")
+}
+
+model client_checklist_templates {
+  client_id             String              @db.Uuid
+  checklist_template_id String              @db.Uuid
+  created_at            DateTime            @default(now()) @db.Timestamptz(6)
+  clients               clients             @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  checklist_templates   checklist_templates @relation(fields: [checklist_template_id], references: [id], onUpdate: NoAction)
+
+  @@id([client_id, checklist_template_id])
   @@schema("public")
 }
 

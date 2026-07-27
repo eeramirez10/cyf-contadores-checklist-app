@@ -402,10 +402,10 @@ export function CompanyRegistrationModal({
               Plantillas para el checklist
             </legend>
             <div className="mt-2 grid max-h-44 gap-2 overflow-auto">
-              {state.templates
+              {state.checklistTemplates
                 .filter((template) => template.isActive)
                 .map((template) => {
-                  const checked = state.selectedTemplateIds.includes(
+                  const checked = state.selectedChecklistTemplateIds.includes(
                     template.id,
                   );
                   return (
@@ -416,14 +416,17 @@ export function CompanyRegistrationModal({
                       <span>
                         {template.name}
                         <span className="ml-2 text-xs text-[var(--foreground-soft)]">
-                          {template.defaultWeight}% - {template.area}
+                          {template.activityIds.length} actividades -{" "}
+                          {template.scheduledMonths.length === 12
+                            ? "Mensual"
+                            : `${template.scheduledMonths.length} meses`}
                         </span>
                       </span>
                       <input
                         type="checkbox"
                         checked={checked}
                         onChange={() =>
-                          state.setSelectedTemplateIds((current) =>
+                          state.setSelectedChecklistTemplateIds((current) =>
                             checked
                               ? current.filter((id) => id !== template.id)
                               : [...current, template.id],

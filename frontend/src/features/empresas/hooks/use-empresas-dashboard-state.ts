@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-toastify";
 import {
   normalizeChecklist,
+  normalizeChecklistTemplate,
   normalizeClient,
   normalizeClientActivity,
   normalizeGroup,
@@ -14,6 +15,7 @@ import {
 import type {
   DbActivityAreaRow,
   DbChecklistRow,
+  DbChecklistTemplateRow,
   DbClientActivityRow,
   DbClientRow,
   DbGroupRow,
@@ -33,6 +35,7 @@ import type {
   ActivityArea,
   ActivityTemplate,
   ChecklistEntry,
+  ChecklistTemplate,
   Client,
   ClientActivity,
   Group,
@@ -56,6 +59,7 @@ type DashboardCatalog = {
   groups: DbGroupRow[];
   areas: DbActivityAreaRow[];
   templates: DbTemplateRow[];
+  checklistTemplates: DbChecklistTemplateRow[];
   clients: DbClientRow[];
   activities: DbClientActivityRow[];
   entries: DbChecklistRow[];
@@ -98,6 +102,9 @@ export function useEmpresasDashboardState() {
   const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [templates, setTemplates] = useState<ActivityTemplate[]>([]);
+  const [checklistTemplates, setChecklistTemplates] = useState<
+    ChecklistTemplate[]
+  >([]);
   const [areas, setAreas] = useState<ActivityArea[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [clientActivities, setClientActivities] = useState<ClientActivity[]>(
@@ -133,7 +140,8 @@ export function useEmpresasDashboardState() {
     PostalCodeOption[]
   >([]);
   const [postalLookupLoading, setPostalLookupLoading] = useState(false);
-  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
+  const [selectedChecklistTemplateIds, setSelectedChecklistTemplateIds] =
+    useState<string[]>([]);
   const [newTemplateName, setNewTemplateName] = useState<string>("");
   const [newTemplateAreaId, setNewTemplateAreaId] = useState<string>("");
   const [newAreaName, setNewAreaName] = useState<string>("");
@@ -212,6 +220,9 @@ export function useEmpresasDashboardState() {
         })),
       );
       setTemplates(catalog.templates.map(normalizeTemplate));
+      setChecklistTemplates(
+        catalog.checklistTemplates.map(normalizeChecklistTemplate),
+      );
       setClients(catalog.clients.map(normalizeClient));
       setClientActivities(catalog.activities.map(normalizeClientActivity));
       setEntries(catalog.entries.map(normalizeChecklist));
@@ -1211,6 +1222,56 @@ export function useEmpresasDashboardState() {
     }
   };
 
+  const saveChecklistTemplate = async (input: {
+    id?: string;
+    name: string;
+    scheduledMonths: number[];
+    activityIds: string[];
+  }) => {
+    if (
+      !input.name.trim() ||
+      !input.activityIds.length ||
+      !input.scheduledMonths.length
+    ) {
+      toast.warning("Completa nombre, actividades y al menos un mes.");
+      return false;
+    }
+    try {
+      const data = await backendFetch<DbChecklistTemplateRow>(
+        input.id
+          ? `/templates/checklists/${input.id}`
+          : "/templates/checklists",
+        {
+          method: input.id ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: input.name.trim(),
+            scheduledMonths: input.scheduledMonths,
+            activityIds: input.activityIds,
+          }),
+        },
+      );
+      const normalized = normalizeChecklistTemplate(data);
+      setChecklistTemplates((current) => {
+        const withoutCurrent = current.filter(
+          (item) => item.id !== normalized.id,
+        );
+        return [...withoutCurrent, normalized].sort((left, right) =>
+          left.name.localeCompare(right.name),
+        );
+      });
+      toast.success(input.id ? "Plantilla actualizada." : "Plantilla creada.");
+      return true;
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar plantilla.",
+      );
+      return false;
+    }
+  };
+
   const onCreateClient = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = newClientName.trim();
@@ -1222,8 +1283,8 @@ export function useEmpresasDashboardState() {
       toast.warning("Selecciona contador.");
       return false;
     }
-    if (!selectedTemplateIds.length) {
-      toast.warning("Selecciona al menos una actividad estandar.");
+    if (!selectedChecklistTemplateIds.length) {
+      toast.warning("Selecciona al menos una plantilla de checklist.");
       return false;
     }
     if (
@@ -1286,11 +1347,11 @@ export function useEmpresasDashboardState() {
             },
             contacts: newClientContacts,
             memberId: assignableMemberValue,
-            templateIds: selectedTemplateIds,
+            checklistTemplateIds: selectedChecklistTemplateIds,
           }),
         },
       );
-      setSelectedTemplateIds([]);
+      setSelectedChecklistTemplateIds([]);
       setNewClientName("");
       setNewClientDetails({
         legalName: "",
@@ -1467,11 +1528,12 @@ export function useEmpresasDashboardState() {
     postalCodeOptions,
     postalLookupLoading,
     lookupPostalCode,
-    selectedTemplateIds,
-    setSelectedTemplateIds,
+    selectedChecklistTemplateIds,
+    setSelectedChecklistTemplateIds,
     onCreateClient,
 
     templates,
+    checklistTemplates,
     areas,
     newTemplateName,
     setNewTemplateName,
@@ -1488,6 +1550,7 @@ export function useEmpresasDashboardState() {
     toggleTemplateActive,
     updateTemplateWeight,
     updateTemplateScheduledMonths,
+    saveChecklistTemplate,
 
     loadData,
   };

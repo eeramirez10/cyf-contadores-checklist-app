@@ -59,7 +59,7 @@ class CreateCompanyDto {
   @IsArray()
   @ArrayNotEmpty()
   @IsUUID('4', { each: true })
-  templateIds: string[];
+  checklistTemplateIds: string[];
 }
 
 class AnnualAgendaQueryDto {
