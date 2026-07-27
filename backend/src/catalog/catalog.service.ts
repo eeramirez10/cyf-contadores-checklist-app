@@ -2,17 +2,20 @@ import { Injectable } from '@nestjs/common';
 import { user_role } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { PermissionsService } from '../permissions/permissions.service';
+import { AssignmentsService } from '../assignments/assignments.service';
 
 @Injectable()
 export class CatalogService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly permissions: PermissionsService,
+    private readonly assignments: AssignmentsService,
   ) {}
 
-  async dashboard(profileId: string, role: string) {
+  async dashboard(profileId: string, role: string, month: string) {
     const actor = { id: profileId, role };
     const memberIds = await this.permissions.visibleMemberIds(actor);
+    await this.assignments.ensureMonth(month);
     const clientWhere =
       memberIds === null ? {} : { member_id: { in: memberIds } };
     const profileWhere =
@@ -31,6 +34,7 @@ export class CatalogService {
       clients,
       activities,
       entries,
+      assignments,
     ] = await Promise.all([
       this.prisma.profiles.findMany({
         where: profileWhere,
@@ -121,6 +125,22 @@ export class CatalogService {
         },
         orderBy: { updated_at: 'desc' },
       }),
+      this.prisma.checklist_assignments.findMany({
+        where: {
+          month,
+          clients:
+            memberIds === null ? undefined : { member_id: { in: memberIds } },
+        },
+        select: {
+          id: true,
+          month: true,
+          client_id: true,
+          template_id: true,
+          assignee_id: true,
+          is_active: true,
+          updated_at: true,
+        },
+      }),
     ]);
     return {
       profiles,
@@ -131,6 +151,7 @@ export class CatalogService {
       clients,
       activities,
       entries,
+      assignments,
     };
   }
 }

@@ -13,6 +13,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { CompaniesModule } from './companies/companies.module';
 import { DocumentsModule } from './documents/documents.module';
 import { TemplatesModule } from './templates/templates.module';
+import { AssignmentsModule } from './assignments/assignments.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { TemplatesModule } from './templates/templates.module';
     CompaniesModule,
     DocumentsModule,
     TemplatesModule,
+    AssignmentsModule,
   ],
 })
 export class AppModule {}

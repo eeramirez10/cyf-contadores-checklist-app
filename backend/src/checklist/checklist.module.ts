@@ -3,9 +3,10 @@ import { ChecklistController } from './checklist.controller';
 import { ChecklistService } from './checklist.service';
 import { IndicatorsModule } from '../indicators/indicators.module';
 import { PermissionsModule } from '../permissions/permissions.module';
+import { AssignmentsModule } from '../assignments/assignments.module';
 
 @Module({
-  imports: [IndicatorsModule, PermissionsModule],
+  imports: [IndicatorsModule, PermissionsModule, AssignmentsModule],
   controllers: [ChecklistController],
   providers: [ChecklistService],
 })

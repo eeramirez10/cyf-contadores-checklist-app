@@ -1,6 +1,7 @@
 import type {
   ActivityTemplate,
   ChecklistEntry,
+  ChecklistAssignment,
   Client,
   ClientActivity,
   ChecklistTemplate,
@@ -9,6 +10,7 @@ import type {
 } from "@/lib/types";
 import type {
   DbChecklistRow,
+  DbChecklistAssignmentRow,
   DbChecklistTemplateRow,
   DbClientActivityRow,
   DbClientRow,
@@ -87,4 +89,16 @@ export const normalizeChecklist = (row: DbChecklistRow): ChecklistEntry => ({
   areaSnapshot: row.area_snapshot,
   weightSnapshot:
     row.weight_snapshot === null ? null : Number(row.weight_snapshot),
+});
+
+export const normalizeChecklistAssignment = (
+  row: DbChecklistAssignmentRow,
+): ChecklistAssignment => ({
+  id: row.id,
+  month: row.month,
+  clientId: row.client_id,
+  templateId: row.template_id,
+  assigneeId: row.assignee_id,
+  isActive: row.is_active,
+  updatedAt: row.updated_at,
 });

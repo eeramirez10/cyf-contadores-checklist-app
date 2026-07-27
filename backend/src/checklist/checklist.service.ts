@@ -9,6 +9,7 @@ import {
   PermissionsService,
   type RequestActor,
 } from '../permissions/permissions.service';
+import { AssignmentsService } from '../assignments/assignments.service';
 
 @Injectable()
 export class ChecklistService {
@@ -16,9 +17,11 @@ export class ChecklistService {
     private readonly prisma: PrismaService,
     private readonly indicators: IndicatorsGateway,
     private readonly permissions: PermissionsService,
+    private readonly assignments: AssignmentsService,
   ) {}
 
   async list(month: string, profileId: string, role: string) {
+    await this.assignments.ensureMonth(month);
     const memberIds = await this.permissions.visibleMemberIds({
       id: profileId,
       role,
@@ -56,6 +59,12 @@ export class ChecklistService {
   ) {
     const actor: RequestActor = { id: profileId, role };
     await this.permissions.canAccessClient(actor, clientId);
+    await this.assignments.assertCanComplete(
+      actor,
+      month,
+      clientId,
+      templateId,
+    );
     const activity = await this.prisma.client_activities.findUnique({
       where: {
         client_id_template_id: { client_id: clientId, template_id: templateId },
@@ -119,5 +128,19 @@ export class ChecklistService {
     });
     this.indicators.emitUpdated(clientId, month);
     return entry;
+  }
+
+  async updateAssignment(
+    month: string,
+    clientId: string,
+    templateId: string,
+    assigneeId: string,
+    isActive: boolean,
+    actor: RequestActor,
+  ) {
+    return this.assignments.update(actor, month, clientId, templateId, {
+      assigneeId,
+      isActive,
+    });
   }
 }

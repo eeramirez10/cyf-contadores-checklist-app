@@ -72,3 +72,13 @@ export type DbChecklistRow = {
   area_snapshot: string | null;
   weight_snapshot: number | string | null;
 };
+
+export type DbChecklistAssignmentRow = {
+  id: string;
+  month: string;
+  client_id: string;
+  template_id: string;
+  assignee_id: string;
+  is_active: boolean;
+  updated_at: string;
+};

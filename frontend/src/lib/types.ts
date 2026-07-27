@@ -75,4 +75,14 @@ export type ChecklistEntry = {
   weightSnapshot: number | null;
 };
 
+export type ChecklistAssignment = {
+  id: string;
+  month: string;
+  clientId: string;
+  templateId: string;
+  assigneeId: string;
+  isActive: boolean;
+  updatedAt: string;
+};
+
 export type RealtimeMode = "mock" | "live" | "connecting";

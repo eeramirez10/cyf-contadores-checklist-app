@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-toastify";
 import {
   normalizeChecklist,
+  normalizeChecklistAssignment,
   normalizeChecklistTemplate,
   normalizeClient,
   normalizeClientActivity,
@@ -15,6 +16,7 @@ import {
 import type {
   DbActivityAreaRow,
   DbChecklistRow,
+  DbChecklistAssignmentRow,
   DbChecklistTemplateRow,
   DbClientActivityRow,
   DbClientRow,
@@ -35,6 +37,7 @@ import type {
   ActivityArea,
   ActivityTemplate,
   ChecklistEntry,
+  ChecklistAssignment,
   ChecklistTemplate,
   Client,
   ClientActivity,
@@ -63,6 +66,7 @@ type DashboardCatalog = {
   clients: DbClientRow[];
   activities: DbClientActivityRow[];
   entries: DbChecklistRow[];
+  assignments: DbChecklistAssignmentRow[];
 };
 
 type CompanyContactDraft = {
@@ -111,6 +115,7 @@ export function useEmpresasDashboardState() {
     [],
   );
   const [entries, setEntries] = useState<ChecklistEntry[]>([]);
+  const [assignments, setAssignments] = useState<ChecklistAssignment[]>([]);
   const [dataLoading, setDataLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
 
@@ -208,8 +213,9 @@ export function useEmpresasDashboardState() {
     setDataLoading(true);
     setMessage("");
     try {
-      const catalog =
-        await backendFetch<DashboardCatalog>("/catalog/dashboard");
+      const catalog = await backendFetch<DashboardCatalog>(
+        `/catalog/dashboard?month=${month}`,
+      );
       setUsers(catalog.profiles.map(normalizeUser));
       setGroups(catalog.groups.map(normalizeGroup));
       setAreas(
@@ -226,6 +232,7 @@ export function useEmpresasDashboardState() {
       setClients(catalog.clients.map(normalizeClient));
       setClientActivities(catalog.activities.map(normalizeClientActivity));
       setEntries(catalog.entries.map(normalizeChecklist));
+      setAssignments(catalog.assignments.map(normalizeChecklistAssignment));
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -235,7 +242,7 @@ export function useEmpresasDashboardState() {
     } finally {
       setDataLoading(false);
     }
-  }, [backendAuthStatus]);
+  }, [backendAuthStatus, month]);
 
   useEffect(() => {
     if (backendAuthStatus !== "authenticated") {
@@ -486,6 +493,19 @@ export function useEmpresasDashboardState() {
     return map;
   }, [entries, month]);
 
+  const currentMonthAssignmentMap = useMemo(() => {
+    const map = new Map<string, ChecklistAssignment>();
+    for (const assignment of assignments) {
+      if (assignment.month === month) {
+        map.set(
+          entryKey(month, assignment.clientId, assignment.templateId),
+          assignment,
+        );
+      }
+    }
+    return map;
+  }, [assignments, month]);
+
   const availableMonths = useMemo(() => {
     const values = new Set(entries.map((entry) => entry.month));
     values.add(month);
@@ -699,6 +719,27 @@ export function useEmpresasDashboardState() {
     : 0;
 
   const canUncheck = currentUser?.role === "ADMIN";
+  const canManageAssignments =
+    currentUser?.role === "ADMIN" || currentUser?.role === "LEADER";
+
+  const currentMonthActiveAssignments = useMemo(() => {
+    return assignments
+      .filter((assignment) => assignment.month === month && assignment.isActive)
+      .map((assignment) => {
+        const client = clients.find((item) => item.id === assignment.clientId);
+        const activity = clientActivities.find(
+          (item) =>
+            item.clientId === assignment.clientId &&
+            item.templateId === assignment.templateId,
+        );
+        return {
+          ...assignment,
+          clientName: client?.name ?? "Empresa",
+          activityName: activity?.name ?? "Actividad",
+        };
+      })
+      .sort((left, right) => left.clientName.localeCompare(right.clientName));
+  }, [assignments, clientActivities, clients, month]);
 
   const memberDirectoryRows = useMemo(() => {
     const query = memberSearchQuery.trim().toLowerCase();
@@ -1054,6 +1095,39 @@ export function useEmpresasDashboardState() {
     } catch (error) {
       setMessage(
         `No se pudo actualizar check: ${
+          error instanceof Error ? error.message : "Error desconocido"
+        }`,
+      );
+    }
+  };
+
+  const updateChecklistAssignment = async (
+    clientId: string,
+    templateId: string,
+    assigneeId: string,
+    isActive: boolean,
+  ) => {
+    try {
+      const data = await backendFetch<DbChecklistAssignmentRow>(
+        `/checklist/${clientId}/${templateId}/assignment?month=${month}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ assigneeId, isActive }),
+        },
+      );
+      const normalized = normalizeChecklistAssignment(data);
+      setAssignments((current) => {
+        const index = current.findIndex((item) => item.id === normalized.id);
+        if (index < 0) return [...current, normalized];
+        const next = [...current];
+        next[index] = normalized;
+        return next;
+      });
+      setMessage("Responsable actualizado.");
+    } catch (error) {
+      setMessage(
+        `No se pudo actualizar responsable: ${
           error instanceof Error ? error.message : "Error desconocido"
         }`,
       );
@@ -1433,6 +1507,7 @@ export function useEmpresasDashboardState() {
     setMessage,
     signOut,
     canUncheck,
+    canManageAssignments,
 
     users,
     groups,
@@ -1513,7 +1588,10 @@ export function useEmpresasDashboardState() {
     goToClientChecklist,
 
     currentMonthEntryMap,
+    currentMonthAssignmentMap,
     toggleChecklist,
+    updateChecklistAssignment,
+    currentMonthActiveAssignments,
 
     assignableMembers,
     assignableMemberValue,

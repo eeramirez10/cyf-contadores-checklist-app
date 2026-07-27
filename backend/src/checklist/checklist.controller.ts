@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Put, Query, Req } from '@nestjs/common';
-import { IsBoolean, Matches } from 'class-validator';
+import { IsBoolean, IsUUID, Matches } from 'class-validator';
 import type { Request } from 'express';
 import { ChecklistService } from './checklist.service';
 class MonthQueryDto {
@@ -10,6 +10,14 @@ class MonthQueryDto {
 class UpdateChecklistDto {
   @IsBoolean()
   completed: boolean;
+}
+
+class UpdateAssignmentDto {
+  @IsUUID()
+  assigneeId: string;
+
+  @IsBoolean()
+  isActive: boolean;
 }
 
 type UserRequest = Request & { user: { id: string; role: string } };
@@ -37,6 +45,24 @@ export class ChecklistController {
       dto.completed,
       request.user.id,
       request.user.role,
+    );
+  }
+
+  @Put(':clientId/:templateId/assignment')
+  updateAssignment(
+    @Param('clientId') clientId: string,
+    @Param('templateId') templateId: string,
+    @Query() query: MonthQueryDto,
+    @Body() dto: UpdateAssignmentDto,
+    @Req() request: UserRequest,
+  ) {
+    return this.checklist.updateAssignment(
+      query.month,
+      clientId,
+      templateId,
+      dto.assigneeId,
+      dto.isActive,
+      request.user,
     );
   }
 }
