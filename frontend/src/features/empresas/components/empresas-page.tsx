@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CompanyRegistrationModal } from "@/features/empresas/components/company-registration-modal";
+import { CompanyEditModal } from "@/features/empresas/components/company-edit-modal";
 import { EmpresaChecklistContent } from "@/features/empresas/components/empresa-checklist-content";
 import { EmpresasPageShell } from "@/features/empresas/components/empresas-page-shell";
 import { useEmpresasDashboardState } from "@/features/empresas/hooks/use-empresas-dashboard-state";
@@ -15,6 +16,7 @@ import { useIndicatorsSocket } from "@/features/indicadores/hooks/use-indicators
 export function EmpresasPage() {
   const state = useEmpresasDashboardState();
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
   useIndicatorsSocket(
     state.clientsVisibleToCurrent.map((client) => client.id),
     state.month,
@@ -219,6 +221,13 @@ export function EmpresasPage() {
                         <div className="flex justify-center gap-2">
                           <button
                             type="button"
+                            onClick={() => setEditingClientId(row.client.id)}
+                            className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
                             onClick={() =>
                               state.openChecklistModal(row.client.id)
                             }
@@ -331,6 +340,13 @@ export function EmpresasPage() {
         <CompanyRegistrationModal
           state={state}
           onClose={() => setIsCompanyModalOpen(false)}
+        />
+      ) : null}
+      {editingClientId ? (
+        <CompanyEditModal
+          clientId={editingClientId}
+          state={state}
+          onClose={() => setEditingClientId(null)}
         />
       ) : null}
     </EmpresasPageShell>

@@ -22,6 +22,7 @@ type CreateCompanyInput = {
     country?: string;
   };
   contacts: {
+    id?: string;
     name: string;
     position?: string;
     email?: string;
@@ -32,6 +33,17 @@ type CreateCompanyInput = {
   }[];
   memberId: string;
   checklistTemplateIds: string[];
+};
+
+type UpdateCompanyInput = CreateCompanyInput & { isActive: boolean };
+
+type ResolvedActivity = {
+  id: string;
+  name: string;
+  area: string;
+  weight: unknown;
+  months: number[];
+  displayOrder: number;
 };
 
 type PostalCodeResponse = {
@@ -58,98 +70,9 @@ export class CompaniesService {
 
   async create(actor: RequestActor, input: CreateCompanyInput) {
     await this.permissions.canManageMember(actor, input.memberId);
-    const checklistTemplateIds = [...new Set(input.checklistTemplateIds)];
-    const checklistTemplates = await this.prisma.checklist_templates.findMany({
-      where: { id: { in: checklistTemplateIds }, is_active: true },
-      select: {
-        id: true,
-        scheduled_months: true,
-        activities: {
-          select: {
-            display_order: true,
-            activity_template: {
-              select: {
-                id: true,
-                name: true,
-                area: true,
-                default_weight: true,
-                is_active: true,
-              },
-            },
-          },
-        },
-      },
-    });
-    if (checklistTemplates.length !== checklistTemplateIds.length) {
-      throw new BadRequestException('Una o mas plantillas no estan activas');
-    }
-    const activitiesById = new Map<
-      string,
-      {
-        id: string;
-        name: string;
-        area: string;
-        weight: unknown;
-        months: number[];
-        displayOrder: number;
-      }
-    >();
-    for (const checklistTemplate of checklistTemplates) {
-      for (const membership of checklistTemplate.activities) {
-        const activity = membership.activity_template;
-        if (!activity.is_active) {
-          throw new BadRequestException(
-            'Una o mas actividades no estan activas',
-          );
-        }
-        const existing = activitiesById.get(activity.id);
-        activitiesById.set(activity.id, {
-          id: activity.id,
-          name: activity.name,
-          area: activity.area,
-          weight: activity.default_weight,
-          months: [
-            ...new Set([
-              ...(existing?.months ?? []),
-              ...checklistTemplate.scheduled_months,
-            ]),
-          ].sort((a, b) => a - b),
-          displayOrder: Math.min(
-            existing?.displayOrder ?? Infinity,
-            membership.display_order,
-          ),
-        });
-      }
-    }
-    const activities = [...activitiesById.values()].sort(
-      (left, right) => left.displayOrder - right.displayOrder,
-    );
-    if (!activities.length) {
-      throw new BadRequestException(
-        'Las plantillas no contienen actividades activas',
-      );
-    }
-    const contacts = input.contacts
-      .map((contact, index) => ({
-        name: contact.name.trim(),
-        position: this.optionalText(contact.position),
-        email: this.optionalText(contact.email)?.toLowerCase() ?? null,
-        phone: this.optionalText(contact.phone),
-        whatsappPhone: this.optionalText(contact.whatsappPhone),
-        notes: this.optionalText(contact.notes),
-        isPrimary: contact.isPrimary || index === 0,
-      }))
-      .filter((contact) => contact.name);
-    if (
-      !contacts.length ||
-      contacts.some(
-        (contact) => !contact.email && !contact.phone && !contact.whatsappPhone,
-      )
-    ) {
-      throw new BadRequestException(
-        'Cada contacto requiere nombre y al menos un medio de contacto',
-      );
-    }
+    const { checklistTemplates, activities } =
+      await this.resolveChecklistTemplates(input.checklistTemplateIds);
+    const contacts = this.normalizeContacts(input.contacts);
 
     return this.prisma.$transaction(async (transaction) => {
       const client = await transaction.clients.create({
@@ -203,6 +126,204 @@ export class CompaniesService {
       });
       return { clientId: client.id };
     });
+  }
+
+  async details(actor: RequestActor, clientId: string) {
+    await this.permissions.canAccessClient(actor, clientId);
+    const client = await this.prisma.clients.findUnique({
+      where: { id: clientId },
+      select: {
+        id: true,
+        name: true,
+        legal_name: true,
+        rfc: true,
+        tax_regime: true,
+        ekey_reference: true,
+        address_street: true,
+        address_ext_no: true,
+        address_int_no: true,
+        address_colony: true,
+        address_postal_code: true,
+        address_city: true,
+        address_state: true,
+        address_country: true,
+        member_id: true,
+        is_active: true,
+        contacts: {
+          orderBy: [{ is_primary: 'desc' }, { name: 'asc' }],
+          select: {
+            id: true,
+            name: true,
+            position: true,
+            email: true,
+            phone: true,
+            whatsapp_phone: true,
+            notes: true,
+            is_primary: true,
+          },
+        },
+        checklist_template_assignments: {
+          select: { checklist_template_id: true },
+        },
+      },
+    });
+    if (!client) {
+      throw new BadRequestException('Empresa no encontrada');
+    }
+    return client;
+  }
+
+  async update(
+    actor: RequestActor,
+    clientId: string,
+    input: UpdateCompanyInput,
+  ) {
+    await this.permissions.canAccessClient(actor, clientId);
+    await this.permissions.canManageMember(actor, input.memberId);
+    const { checklistTemplates, activities } =
+      await this.resolveChecklistTemplates(input.checklistTemplateIds);
+    const contacts = this.normalizeContacts(input.contacts);
+    const existingContacts = await this.prisma.contacts.findMany({
+      where: { client_id: clientId },
+      select: {
+        id: true,
+        document_deliveries: { select: { id: true }, take: 1 },
+      },
+    });
+    const existingContactIds = new Set(
+      existingContacts.map((contact) => contact.id),
+    );
+    const submittedContactIds = contacts
+      .map((contact) => contact.id)
+      .filter((id): id is string => Boolean(id));
+    if (
+      submittedContactIds.length !== new Set(submittedContactIds).size ||
+      submittedContactIds.some((id) => !existingContactIds.has(id))
+    ) {
+      throw new BadRequestException(
+        'Uno o mas contactos no pertenecen a la empresa',
+      );
+    }
+    const removedContactIds = existingContacts
+      .filter((contact) => !submittedContactIds.includes(contact.id))
+      .map((contact) => contact.id);
+    if (
+      existingContacts.some(
+        (contact) =>
+          removedContactIds.includes(contact.id) &&
+          contact.document_deliveries.length > 0,
+      )
+    ) {
+      throw new BadRequestException(
+        'No se puede quitar un contacto con envios documentales registrados',
+      );
+    }
+    const existingActivities = await this.prisma.client_activities.findMany({
+      where: { client_id: clientId },
+      select: { template_id: true },
+    });
+    const existingActivityIds = new Set(
+      existingActivities.map((activity) => activity.template_id),
+    );
+    const activeActivityIds = new Set(
+      activities.map((activity) => activity.id),
+    );
+
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.clients.update({
+        where: { id: clientId },
+        data: {
+          name: input.name.trim(),
+          legal_name: input.legalName.trim(),
+          rfc: input.rfc.trim().toUpperCase(),
+          tax_regime: input.taxRegime.trim(),
+          ekey_reference: this.optionalText(input.ekeyReference),
+          address_street: input.address.street.trim(),
+          address_ext_no: input.address.exteriorNumber.trim(),
+          address_int_no: this.optionalText(input.address.interiorNumber),
+          address_colony: this.optionalText(input.address.colony),
+          address_postal_code: input.address.postalCode.trim(),
+          address_city: input.address.city.trim(),
+          address_state: input.address.state.trim(),
+          address_country: input.address.country?.trim() || 'Mexico',
+          member_id: input.memberId,
+          is_active: input.isActive,
+        },
+      });
+      if (removedContactIds.length) {
+        await transaction.contacts.deleteMany({
+          where: { id: { in: removedContactIds } },
+        });
+      }
+      for (const contact of contacts) {
+        const data = {
+          name: contact.name,
+          position: contact.position,
+          email: contact.email,
+          phone: contact.phone,
+          whatsapp_phone: contact.whatsappPhone,
+          notes: contact.notes,
+          is_primary: contact.isPrimary,
+        };
+        if (contact.id) {
+          await transaction.contacts.update({
+            where: { id: contact.id },
+            data,
+          });
+        } else {
+          await transaction.contacts.create({
+            data: { ...data, client_id: clientId, created_by: actor.id },
+          });
+        }
+      }
+      await transaction.client_checklist_templates.deleteMany({
+        where: { client_id: clientId },
+      });
+      await transaction.client_checklist_templates.createMany({
+        data: checklistTemplates.map((template) => ({
+          client_id: clientId,
+          checklist_template_id: template.id,
+        })),
+      });
+      for (const [index, activity] of activities.entries()) {
+        const data = {
+          name: activity.name,
+          area: activity.area,
+          weight: activity.weight as never,
+          scheduled_months: activity.months,
+          display_order: index + 1,
+          is_active: true,
+        };
+        if (existingActivityIds.has(activity.id)) {
+          await transaction.client_activities.update({
+            where: {
+              client_id_template_id: {
+                client_id: clientId,
+                template_id: activity.id,
+              },
+            },
+            data,
+          });
+        } else {
+          await transaction.client_activities.create({
+            data: { ...data, client_id: clientId, template_id: activity.id },
+          });
+        }
+      }
+      const removedActivityIds = existingActivities
+        .map((activity) => activity.template_id)
+        .filter((id) => !activeActivityIds.has(id));
+      if (removedActivityIds.length) {
+        await transaction.client_activities.updateMany({
+          where: {
+            client_id: clientId,
+            template_id: { in: removedActivityIds },
+          },
+          data: { is_active: false },
+        });
+      }
+    });
+    return { clientId };
   }
 
   async lookupPostalCode(postalCode: string) {
@@ -434,5 +555,96 @@ export class CompaniesService {
   private optionalText(value: string | undefined) {
     const normalized = value?.trim();
     return normalized || null;
+  }
+
+  private normalizeContacts(input: CreateCompanyInput['contacts']) {
+    const contacts = input
+      .map((contact, index) => ({
+        id: contact.id,
+        name: contact.name.trim(),
+        position: this.optionalText(contact.position),
+        email: this.optionalText(contact.email)?.toLowerCase() ?? null,
+        phone: this.optionalText(contact.phone),
+        whatsappPhone: this.optionalText(contact.whatsappPhone),
+        notes: this.optionalText(contact.notes),
+        isPrimary: contact.isPrimary || index === 0,
+      }))
+      .filter((contact) => contact.name);
+    if (
+      !contacts.length ||
+      contacts.some(
+        (contact) => !contact.email && !contact.phone && !contact.whatsappPhone,
+      )
+    ) {
+      throw new BadRequestException(
+        'Cada contacto requiere nombre y al menos un medio de contacto',
+      );
+    }
+    return contacts;
+  }
+
+  private async resolveChecklistTemplates(checklistTemplateIds: string[]) {
+    const uniqueIds = [...new Set(checklistTemplateIds)];
+    const checklistTemplates = await this.prisma.checklist_templates.findMany({
+      where: { id: { in: uniqueIds }, is_active: true },
+      select: {
+        id: true,
+        scheduled_months: true,
+        activities: {
+          select: {
+            display_order: true,
+            activity_template: {
+              select: {
+                id: true,
+                name: true,
+                area: true,
+                default_weight: true,
+                is_active: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (checklistTemplates.length !== uniqueIds.length) {
+      throw new BadRequestException('Una o mas plantillas no estan activas');
+    }
+    const activitiesById = new Map<string, ResolvedActivity>();
+    for (const checklistTemplate of checklistTemplates) {
+      for (const membership of checklistTemplate.activities) {
+        const activity = membership.activity_template;
+        if (!activity.is_active) {
+          throw new BadRequestException(
+            'Una o mas actividades no estan activas',
+          );
+        }
+        const existing = activitiesById.get(activity.id);
+        activitiesById.set(activity.id, {
+          id: activity.id,
+          name: activity.name,
+          area: activity.area,
+          weight: activity.default_weight,
+          months: [
+            ...new Set([
+              ...(existing?.months ?? []),
+              ...checklistTemplate.scheduled_months,
+            ]),
+          ].sort((left, right) => left - right),
+          displayOrder: Math.min(
+            existing?.displayOrder ?? Infinity,
+            membership.display_order,
+          ),
+        });
+      }
+    }
+    const activities = [...activitiesById.values()].sort(
+      (left, right) => left.displayOrder - right.displayOrder,
+    );
+    if (!activities.length) {
+      throw new BadRequestException(
+        'Las plantillas no contienen actividades activas',
+      );
+    }
+    return { checklistTemplates, activities };
   }
 }

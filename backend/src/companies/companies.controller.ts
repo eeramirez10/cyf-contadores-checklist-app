@@ -1,6 +1,16 @@
-import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
 import {
   ArrayNotEmpty,
+  IsBoolean,
   IsEmail,
   IsArray,
   IsOptional,
@@ -26,6 +36,7 @@ class CompanyAddressDto {
 }
 
 class CompanyContactDto {
+  @IsOptional() @IsUUID() id?: string;
   @IsString() @MinLength(1) name: string;
   @IsOptional() @IsString() position?: string;
   @IsOptional() @IsEmail() email?: string;
@@ -62,6 +73,11 @@ class CreateCompanyDto {
   checklistTemplateIds: string[];
 }
 
+class UpdateCompanyDto extends CreateCompanyDto {
+  @IsBoolean()
+  isActive: boolean;
+}
+
 class AnnualAgendaQueryDto {
   @Matches(/^\d{4}$/) year: string;
 }
@@ -93,5 +109,19 @@ export class CompaniesController {
       clientId,
       Number(query.year),
     );
+  }
+
+  @Get(':clientId')
+  details(@Param('clientId') clientId: string, @Req() request: UserRequest) {
+    return this.companies.details(request.user, clientId);
+  }
+
+  @Patch(':clientId')
+  update(
+    @Param('clientId') clientId: string,
+    @Body() dto: UpdateCompanyDto,
+    @Req() request: UserRequest,
+  ) {
+    return this.companies.update(request.user, clientId, dto);
   }
 }
