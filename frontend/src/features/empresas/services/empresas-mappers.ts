@@ -34,6 +34,7 @@ export const normalizeTemplate = (row: DbTemplateRow): ActivityTemplate => ({
   name: row.name,
   area: row.area,
   defaultWeight: Number(row.default_weight),
+  scheduledMonths: row.scheduled_months,
   displayOrder: row.display_order,
   isActive: row.is_active,
   createdBy: row.created_by,
@@ -47,13 +48,16 @@ export const normalizeClient = (row: DbClientRow): Client => ({
   createdAt: row.created_at,
 });
 
-export const normalizeClientActivity = (row: DbClientActivityRow): ClientActivity => ({
+export const normalizeClientActivity = (
+  row: DbClientActivityRow,
+): ClientActivity => ({
   id: row.id,
   clientId: row.client_id,
   templateId: row.template_id,
   name: row.name,
   area: row.area,
   weight: Number(row.weight),
+  scheduledMonths: row.scheduled_months,
   displayOrder: row.display_order,
   isActive: row.is_active,
 });
@@ -67,4 +71,8 @@ export const normalizeChecklist = (row: DbChecklistRow): ChecklistEntry => ({
   completedAt: row.completed_at,
   updatedAt: row.updated_at,
   completedBy: row.completed_by,
+  activityName: row.activity_name,
+  areaSnapshot: row.area_snapshot,
+  weightSnapshot:
+    row.weight_snapshot === null ? null : Number(row.weight_snapshot),
 });

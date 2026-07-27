@@ -2,8 +2,11 @@ import type { Area, ChecklistEntry, ClientActivity } from "@/lib/types";
 
 const toFixedPercent = (value: number): number => Math.round(value * 10) / 10;
 
-const entryKey = (month: string, clientId: string, templateId: string): string =>
-  `${month}|${clientId}|${templateId}`;
+const entryKey = (
+  month: string,
+  clientId: string,
+  templateId: string,
+): string => `${month}|${clientId}|${templateId}`;
 
 export const completionLabel = (percent: number): string => {
   if (percent < 60) {
@@ -41,10 +44,12 @@ export const calculateProgress = ({
   area,
 }: ProgressInput): number => {
   const clientIdSet = new Set(clientIds);
+  const monthNumber = Number(month.slice(5));
   const scopedActivities = activities.filter(
     (activity) =>
       activity.isActive &&
       clientIdSet.has(activity.clientId) &&
+      activity.scheduledMonths.includes(monthNumber) &&
       (!area || activity.area === area),
   );
   if (!scopedActivities.length || !clientIds.length) {
@@ -59,7 +64,10 @@ export const calculateProgress = ({
     scopedEntries.set(entryKey(month, entry.clientId, entry.templateId), entry);
   }
 
-  const totalWeight = scopedActivities.reduce((sum, activity) => sum + activity.weight, 0);
+  const totalWeight = scopedActivities.reduce(
+    (sum, activity) => sum + activity.weight,
+    0,
+  );
   if (totalWeight <= 0) {
     return 0;
   }

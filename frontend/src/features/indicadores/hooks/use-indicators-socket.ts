@@ -7,7 +7,7 @@ import { env } from "@/lib/env";
 
 export function useIndicatorsSocket(
   clientIds: readonly string[],
-  month: string,
+  month: string | null,
   onUpdated: () => void,
 ) {
   const handleUpdated = useEffectEvent(onUpdated);
@@ -31,7 +31,7 @@ export function useIndicatorsSocket(
       "indicators:updated",
       (event: { clientId: string; month: string }) => {
         if (
-          event.month === month &&
+          (month === null || event.month === month) &&
           subscribedClientIds.includes(event.clientId)
         ) {
           handleUpdated();

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -9,11 +10,13 @@ type CreateTemplateInput = {
   name: string;
   areaId: string;
   defaultWeight: number;
+  scheduledMonths?: number[];
 };
 
 type UpdateTemplateInput = {
   defaultWeight?: number;
   isActive?: boolean;
+  scheduledMonths?: number[];
 };
 
 @Injectable()
@@ -40,6 +43,7 @@ export class TemplatesService {
         area: area.name,
         area_id: area.id,
         default_weight: input.defaultWeight,
+        scheduled_months: this.normalizeScheduledMonths(input.scheduledMonths),
         display_order: (highestOrder._max.display_order ?? 0) + 1,
         created_by: actorId,
       },
@@ -48,6 +52,7 @@ export class TemplatesService {
         name: true,
         area: true,
         default_weight: true,
+        scheduled_months: true,
         display_order: true,
         is_active: true,
         created_by: true,
@@ -84,12 +89,20 @@ export class TemplatesService {
           ? {}
           : { default_weight: input.defaultWeight }),
         ...(input.isActive === undefined ? {} : { is_active: input.isActive }),
+        ...(input.scheduledMonths === undefined
+          ? {}
+          : {
+              scheduled_months: this.normalizeScheduledMonths(
+                input.scheduledMonths,
+              ),
+            }),
       },
       select: {
         id: true,
         name: true,
         area: true,
         default_weight: true,
+        scheduled_months: true,
         display_order: true,
         is_active: true,
         created_by: true,
@@ -101,5 +114,17 @@ export class TemplatesService {
     if (role !== 'ADMIN') {
       throw new ForbiddenException('Se requiere rol de administrador');
     }
+  }
+
+  private normalizeScheduledMonths(months: number[] | undefined): number[] {
+    const normalized = [
+      ...new Set(months ?? Array.from({ length: 12 }, (_, index) => index + 1)),
+    ]
+      .filter((month) => Number.isInteger(month) && month >= 1 && month <= 12)
+      .sort((left, right) => left - right);
+    if (!normalized.length || normalized.length !== (months?.length ?? 12)) {
+      throw new BadRequestException('Los meses programados no son validos');
+    }
+    return normalized;
   }
 }

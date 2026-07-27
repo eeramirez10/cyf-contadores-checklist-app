@@ -35,6 +35,7 @@ export type ActivityTemplate = {
   name: string;
   area: Area;
   defaultWeight: number;
+  scheduledMonths: number[];
   displayOrder: number;
   isActive: boolean;
   createdBy: string;
@@ -47,6 +48,7 @@ export type ClientActivity = {
   name: string;
   area: Area;
   weight: number;
+  scheduledMonths: number[];
   displayOrder: number;
   isActive: boolean;
 };
@@ -60,6 +62,9 @@ export type ChecklistEntry = {
   completedAt: string | null;
   updatedAt: string;
   completedBy: string | null;
+  activityName: string | null;
+  areaSnapshot: string | null;
+  weightSnapshot: number | null;
 };
 
 export type RealtimeMode = "mock" | "live" | "connecting";

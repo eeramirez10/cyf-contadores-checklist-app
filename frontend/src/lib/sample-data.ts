@@ -43,6 +43,7 @@ const completionThresholdByArea: Record<Area, number> = {
   VENTAS: 62,
   PRODUCCION: 57,
 };
+const ALL_MONTHS = Array.from({ length: 12 }, (_, index) => index + 1);
 
 export const currentMonthKey = (): string => new Date().toISOString().slice(0, 7);
 
@@ -62,16 +63,16 @@ export const sampleUsers: User[] = [
 ];
 
 export const sampleTemplates: ActivityTemplate[] = [
-  { id: "tpl-estado-cuenta", name: "Estado de cuenta", area: "VENTAS", defaultWeight: 10, displayOrder: 1, isActive: true, createdBy: "usr-admin-luis-alberto" },
-  { id: "tpl-contabilidad", name: "Contabilidad", area: "VENTAS", defaultWeight: 10, displayOrder: 2, isActive: true, createdBy: "usr-admin-luis-alberto" },
-  { id: "tpl-pendientes", name: "Pendientes", area: "VENTAS", defaultWeight: 8, displayOrder: 3, isActive: true, createdBy: "usr-admin-luis-alberto" },
-  { id: "tpl-conciliacion", name: "Conciliacion bancaria", area: "VENTAS", defaultWeight: 12, displayOrder: 4, isActive: true, createdBy: "usr-admin-luis-alberto" },
-  { id: "tpl-estados-financieros", name: "Revision estados financieros", area: "PRODUCCION", defaultWeight: 14, displayOrder: 5, isActive: true, createdBy: "usr-admin-luis-alberto" },
-  { id: "tpl-deudores", name: "Revision deudores", area: "PRODUCCION", defaultWeight: 10, displayOrder: 6, isActive: true, createdBy: "usr-admin-luis-alberto" },
-  { id: "tpl-acreedores", name: "Revision acreedores", area: "PRODUCCION", defaultWeight: 8, displayOrder: 7, isActive: true, createdBy: "usr-admin-luis-alberto" },
-  { id: "tpl-cancelacion-impuestos", name: "Cancelacion impuestos", area: "PRODUCCION", defaultWeight: 10, displayOrder: 8, isActive: true, createdBy: "usr-admin-luis-alberto" },
-  { id: "tpl-determinacion-impuestos", name: "Determinacion impuestos", area: "PRODUCCION", defaultWeight: 10, displayOrder: 9, isActive: true, createdBy: "usr-admin-luis-alberto" },
-  { id: "tpl-cumplimiento", name: "Cumplimiento obligaciones", area: "PRODUCCION", defaultWeight: 8, displayOrder: 10, isActive: true, createdBy: "usr-admin-luis-alberto" },
+  { id: "tpl-estado-cuenta", name: "Estado de cuenta", area: "VENTAS", defaultWeight: 10, scheduledMonths: ALL_MONTHS, displayOrder: 1, isActive: true, createdBy: "usr-admin-luis-alberto" },
+  { id: "tpl-contabilidad", name: "Contabilidad", area: "VENTAS", defaultWeight: 10, scheduledMonths: ALL_MONTHS, displayOrder: 2, isActive: true, createdBy: "usr-admin-luis-alberto" },
+  { id: "tpl-pendientes", name: "Pendientes", area: "VENTAS", defaultWeight: 8, scheduledMonths: ALL_MONTHS, displayOrder: 3, isActive: true, createdBy: "usr-admin-luis-alberto" },
+  { id: "tpl-conciliacion", name: "Conciliacion bancaria", area: "VENTAS", defaultWeight: 12, scheduledMonths: ALL_MONTHS, displayOrder: 4, isActive: true, createdBy: "usr-admin-luis-alberto" },
+  { id: "tpl-estados-financieros", name: "Revision estados financieros", area: "PRODUCCION", defaultWeight: 14, scheduledMonths: ALL_MONTHS, displayOrder: 5, isActive: true, createdBy: "usr-admin-luis-alberto" },
+  { id: "tpl-deudores", name: "Revision deudores", area: "PRODUCCION", defaultWeight: 10, scheduledMonths: ALL_MONTHS, displayOrder: 6, isActive: true, createdBy: "usr-admin-luis-alberto" },
+  { id: "tpl-acreedores", name: "Revision acreedores", area: "PRODUCCION", defaultWeight: 8, scheduledMonths: ALL_MONTHS, displayOrder: 7, isActive: true, createdBy: "usr-admin-luis-alberto" },
+  { id: "tpl-cancelacion-impuestos", name: "Cancelacion impuestos", area: "PRODUCCION", defaultWeight: 10, scheduledMonths: ALL_MONTHS, displayOrder: 8, isActive: true, createdBy: "usr-admin-luis-alberto" },
+  { id: "tpl-determinacion-impuestos", name: "Determinacion impuestos", area: "PRODUCCION", defaultWeight: 10, scheduledMonths: ALL_MONTHS, displayOrder: 9, isActive: true, createdBy: "usr-admin-luis-alberto" },
+  { id: "tpl-cumplimiento", name: "Cumplimiento obligaciones", area: "PRODUCCION", defaultWeight: 8, scheduledMonths: ALL_MONTHS, displayOrder: 10, isActive: true, createdBy: "usr-admin-luis-alberto" },
 ];
 
 export const sampleClients: Client[] = [
@@ -110,6 +111,7 @@ export const sampleClientActivities: ClientActivity[] = sampleClients.flatMap((c
       name: template.name,
       area: template.area,
       weight: template.defaultWeight,
+      scheduledMonths: template.scheduledMonths,
       displayOrder: index + 1,
       isActive: true,
     };
@@ -131,6 +133,9 @@ const buildEntriesForMonth = (month: string): ChecklistEntry[] => {
       completedAt: completed ? stableTimestamp : null,
       updatedAt: stableTimestamp,
       completedBy: completed ? sampleClients.find((client) => client.id === activity.clientId)?.memberId ?? null : null,
+      activityName: activity.name,
+      areaSnapshot: activity.area,
+      weightSnapshot: activity.weight,
     };
   });
 };

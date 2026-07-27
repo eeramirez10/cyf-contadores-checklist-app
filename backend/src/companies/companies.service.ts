@@ -66,6 +66,7 @@ export class CompaniesService {
         name: true,
         area: true,
         default_weight: true,
+        scheduled_months: true,
         display_order: true,
       },
       orderBy: { display_order: 'asc' },
@@ -135,6 +136,7 @@ export class CompaniesService {
           name: template.name,
           area: template.area,
           weight: template.default_weight,
+          scheduled_months: template.scheduled_months,
           display_order: index + 1,
         })),
       });
@@ -179,6 +181,153 @@ export class CompaniesService {
       result,
     });
     return result;
+  }
+
+  async annualAgenda(actor: RequestActor, clientId: string, year: number) {
+    await this.permissions.canAccessClient(actor, clientId);
+    const client = await this.prisma.clients.findUnique({
+      where: { id: clientId },
+      select: { id: true, name: true, created_at: true },
+    });
+    if (!client) {
+      throw new BadRequestException('Empresa no encontrada');
+    }
+
+    const activities = await this.prisma.client_activities.findMany({
+      where: { client_id: clientId },
+      select: {
+        template_id: true,
+        name: true,
+        area: true,
+        weight: true,
+        scheduled_months: true,
+        is_active: true,
+        created_at: true,
+      },
+    });
+    const now = new Date();
+    const currentMonth = `${now.getUTCFullYear()}-${String(
+      now.getUTCMonth() + 1,
+    ).padStart(2, '0')}`;
+    const months = Array.from({ length: 12 }, (_, index) => {
+      const month = index + 1;
+      return `${year}-${String(month).padStart(2, '0')}`;
+    });
+    const expectedByMonth = new Map(
+      months.map((month) => [
+        month,
+        activities.filter((activity) => {
+          const monthNumber = Number(month.slice(5));
+          const monthEnd = new Date(Date.UTC(year, monthNumber, 0, 23, 59, 59));
+          return (
+            activity.is_active &&
+            activity.created_at <= monthEnd &&
+            activity.scheduled_months.includes(monthNumber)
+          );
+        }),
+      ]),
+    );
+    const entriesToCreate = months
+      .filter((month) => month <= currentMonth)
+      .flatMap((month) =>
+        (expectedByMonth.get(month) ?? []).map((activity) => ({
+          month,
+          client_id: clientId,
+          template_id: activity.template_id,
+          activity_name: activity.name,
+          area_snapshot: activity.area,
+          weight_snapshot: activity.weight,
+        })),
+      );
+    if (entriesToCreate.length) {
+      await this.prisma.checklist_entries.createMany({
+        data: entriesToCreate,
+        skipDuplicates: true,
+      });
+    }
+
+    const entries = await this.prisma.checklist_entries.findMany({
+      where: { client_id: clientId, month: { in: months } },
+      select: {
+        month: true,
+        template_id: true,
+        completed: true,
+        completed_at: true,
+        activity_name: true,
+        area_snapshot: true,
+        weight_snapshot: true,
+      },
+    });
+    const activitiesByTemplateId = new Map(
+      activities.map((activity) => [activity.template_id, activity]),
+    );
+    const entriesByMonth = new Map<string, typeof entries>();
+    for (const entry of entries) {
+      const current = entriesByMonth.get(entry.month) ?? [];
+      current.push(entry);
+      entriesByMonth.set(entry.month, current);
+    }
+
+    return {
+      company: { id: client.id, name: client.name },
+      year,
+      months: months.map((month) => {
+        const period =
+          month > currentMonth
+            ? 'FUTURE'
+            : month === currentMonth
+              ? 'CURRENT'
+              : 'PAST';
+        const expected = expectedByMonth.get(month) ?? [];
+        const entriesForMonth = entriesByMonth.get(month) ?? [];
+        const totalWeight = entriesForMonth.reduce(
+          (total, entry) =>
+            total +
+            Number(
+              entry.weight_snapshot ??
+                activitiesByTemplateId.get(entry.template_id)?.weight ??
+                0,
+            ),
+          0,
+        );
+        const completedWeight = entriesForMonth.reduce((total, entry) => {
+          if (!entry.completed) return total;
+          return (
+            total +
+            Number(
+              entry.weight_snapshot ??
+                activitiesByTemplateId.get(entry.template_id)?.weight ??
+                0,
+            )
+          );
+        }, 0);
+        const pending = entriesForMonth
+          .filter((entry) => !entry.completed && period !== 'FUTURE')
+          .map((entry) => {
+            const activity = activitiesByTemplateId.get(entry.template_id);
+            return {
+              templateId: entry.template_id,
+              name: entry.activity_name ?? activity?.name ?? 'Actividad',
+              area: entry.area_snapshot ?? activity?.area ?? 'Sin area',
+              weight: Number(entry.weight_snapshot ?? activity?.weight ?? 0),
+              status: period === 'PAST' ? 'OVERDUE' : 'PENDING',
+            };
+          });
+        return {
+          month,
+          period,
+          expectedCount:
+            period === 'FUTURE' ? expected.length : entriesForMonth.length,
+          completedCount: entriesForMonth.filter((entry) => entry.completed)
+            .length,
+          progress:
+            totalWeight > 0
+              ? Math.round((completedWeight / totalWeight) * 1000) / 10
+              : null,
+          pending,
+        };
+      }),
+    };
   }
 
   private optionalText(value: string | undefined) {

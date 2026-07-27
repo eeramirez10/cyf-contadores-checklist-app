@@ -25,6 +25,7 @@ export type DbTemplateRow = {
   name: string;
   area: Area;
   default_weight: number | string;
+  scheduled_months: number[];
   display_order: number;
   is_active: boolean;
   created_by: string;
@@ -45,6 +46,7 @@ export type DbClientActivityRow = {
   name: string;
   area: Area;
   weight: number | string;
+  scheduled_months: number[];
   display_order: number;
   is_active: boolean;
 };
@@ -58,4 +60,7 @@ export type DbChecklistRow = {
   completed_at: string | null;
   updated_at: string;
   completed_by: string | null;
+  activity_name: string | null;
+  area_snapshot: string | null;
+  weight_snapshot: number | string | null;
 };

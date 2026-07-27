@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
 import {
   ArrayNotEmpty,
   IsEmail,
@@ -62,6 +62,10 @@ class CreateCompanyDto {
   templateIds: string[];
 }
 
+class AnnualAgendaQueryDto {
+  @Matches(/^\d{4}$/) year: string;
+}
+
 type UserRequest = Request & { user: { id: string; role: string } };
 
 @Controller({ path: 'companies', version: '1' })
@@ -76,5 +80,18 @@ export class CompaniesController {
   @Get('postal-codes/:postalCode')
   lookupPostalCode(@Param('postalCode') postalCode: string) {
     return this.companies.lookupPostalCode(postalCode);
+  }
+
+  @Get(':clientId/annual-agenda')
+  annualAgenda(
+    @Param('clientId') clientId: string,
+    @Query() query: AnnualAgendaQueryDto,
+    @Req() request: UserRequest,
+  ) {
+    return this.companies.annualAgenda(
+      request.user,
+      clientId,
+      Number(query.year),
+    );
   }
 }

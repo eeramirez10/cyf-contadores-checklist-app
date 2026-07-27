@@ -1,6 +1,9 @@
 import { Body, Controller, Param, Patch, Post, Req } from '@nestjs/common';
 import {
+  ArrayNotEmpty,
+  IsArray,
   IsBoolean,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -23,6 +26,14 @@ class CreateTemplateDto {
   @Min(1)
   @Max(100)
   defaultWeight: number;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  @Max(12, { each: true })
+  scheduledMonths?: number[];
 }
 
 class CreateAreaDto {
@@ -41,6 +52,14 @@ class UpdateTemplateDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  @Max(12, { each: true })
+  scheduledMonths?: number[];
 }
 
 type UserRequest = Request & { user: { id: string; role: string } };

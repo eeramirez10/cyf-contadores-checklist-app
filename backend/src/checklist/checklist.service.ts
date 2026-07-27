@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { IndicatorsGateway } from '../indicators/indicators.gateway';
 import {
@@ -33,6 +37,9 @@ export class ChecklistService {
         completed: true,
         completed_at: true,
         completed_by: true,
+        activity_name: true,
+        area_snapshot: true,
+        weight_snapshot: true,
         updated_at: true,
       },
       orderBy: { updated_at: 'desc' },
@@ -49,6 +56,27 @@ export class ChecklistService {
   ) {
     const actor: RequestActor = { id: profileId, role };
     await this.permissions.canAccessClient(actor, clientId);
+    const activity = await this.prisma.client_activities.findUnique({
+      where: {
+        client_id_template_id: { client_id: clientId, template_id: templateId },
+      },
+      select: {
+        name: true,
+        area: true,
+        weight: true,
+        scheduled_months: true,
+        is_active: true,
+      },
+    });
+    const monthNumber = Number(month.slice(5));
+    if (
+      !activity?.is_active ||
+      !activity.scheduled_months.includes(monthNumber)
+    ) {
+      throw new BadRequestException(
+        'La actividad no esta programada para este mes',
+      );
+    }
     const existing = await this.prisma.checklist_entries.findUnique({
       where: {
         month_client_id_template_id: {
@@ -79,6 +107,9 @@ export class ChecklistService {
         completed,
         completed_at: completed ? new Date() : null,
         completed_by: completed ? profileId : null,
+        activity_name: activity.name,
+        area_snapshot: activity.area,
+        weight_snapshot: activity.weight,
       },
       update: {
         completed,

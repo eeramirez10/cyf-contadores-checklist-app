@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { CompanyRegistrationModal } from "@/features/empresas/components/company-registration-modal";
 import { EmpresaChecklistContent } from "@/features/empresas/components/empresa-checklist-content";
 import { EmpresasPageShell } from "@/features/empresas/components/empresas-page-shell";
@@ -215,15 +216,23 @@ export function EmpresasPage() {
                         {formatCompletedAt(row.lastCompletedAt)}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            state.openChecklistModal(row.client.id)
-                          }
-                          className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
-                        >
-                          Ver checklist
-                        </button>
+                        <div className="flex justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              state.openChecklistModal(row.client.id)
+                            }
+                            className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                          >
+                            Ver checklist
+                          </button>
+                          <Link
+                            href={`/empresas/${row.client.id}/agenda`}
+                            className="rounded-lg bg-[#0b315f] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#08264b]"
+                          >
+                            Agenda anual
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))

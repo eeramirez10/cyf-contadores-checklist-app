@@ -4,6 +4,21 @@ import { useState } from "react";
 import { EmpresasPageShell } from "@/features/empresas/components/empresas-page-shell";
 import { useEmpresasDashboardState } from "@/features/empresas/hooks/use-empresas-dashboard-state";
 
+const MONTHS = [
+  "Ene",
+  "Feb",
+  "Mar",
+  "Abr",
+  "May",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dic",
+];
+
 export function PlantillasPage() {
   const state = useEmpresasDashboardState();
   const [activityAreaId, setActivityAreaId] = useState<string | null>(null);
@@ -168,6 +183,42 @@ export function PlantillasPage() {
                   className="soft-input mt-1 w-full px-3 py-2 text-sm"
                 />
               </label>
+              <fieldset>
+                <legend className="text-xs text-[var(--foreground-soft)]">
+                  Meses aplicables
+                </legend>
+                <p className="mt-1 text-xs text-[var(--foreground-soft)]">
+                  La actividad solo se exigira en los meses seleccionados.
+                </p>
+                <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {MONTHS.map((label, index) => {
+                    const month = index + 1;
+                    const selected =
+                      state.newTemplateScheduledMonths.includes(month);
+                    return (
+                      <label
+                        key={month}
+                        className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2 py-1.5 text-xs ${selected ? "border-[var(--accent)] bg-blue-50 text-blue-800" : "border-[var(--line)] text-[var(--foreground-soft)]"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() =>
+                            state.setNewTemplateScheduledMonths((current) =>
+                              selected
+                                ? current.filter((item) => item !== month)
+                                : [...current, month].sort(
+                                    (left, right) => left - right,
+                                  ),
+                            )
+                          }
+                        />
+                        {label}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
               <div className="flex justify-end gap-3">
                 <button
                   type="button"

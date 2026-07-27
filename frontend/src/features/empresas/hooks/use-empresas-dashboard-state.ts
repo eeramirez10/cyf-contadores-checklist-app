@@ -138,6 +138,9 @@ export function useEmpresasDashboardState() {
   const [newTemplateAreaId, setNewTemplateAreaId] = useState<string>("");
   const [newAreaName, setNewAreaName] = useState<string>("");
   const [newTemplateWeight, setNewTemplateWeight] = useState<number>(10);
+  const [newTemplateScheduledMonths, setNewTemplateScheduledMonths] = useState<
+    number[]
+  >(Array.from({ length: 12 }, (_, index) => index + 1));
   const [memberSearchQuery, setMemberSearchQuery] = useState<string>("");
   const [memberPage, setMemberPage] = useState<number>(1);
   const [memberClientSearchQuery, setMemberClientSearchQuery] =
@@ -421,14 +424,17 @@ export function useEmpresasDashboardState() {
     [clientsVisibleToCurrent, selectedClientValue],
   );
 
+  const activeChecklistClientId =
+    checklistModalClientId ??
+    (searchParams.get("checklist") === "1" ? clientIdFromQuery : null);
   const checklistModalClient = useMemo(
     () =>
-      checklistModalClientId
+      activeChecklistClientId
         ? (clientsVisibleToCurrent.find(
-            (client) => client.id === checklistModalClientId,
+            (client) => client.id === activeChecklistClientId,
           ) ?? null)
         : null,
-    [checklistModalClientId, clientsVisibleToCurrent],
+    [activeChecklistClientId, clientsVisibleToCurrent],
   );
 
   const selectedClientActivities = useMemo(() => {
@@ -438,10 +444,12 @@ export function useEmpresasDashboardState() {
     return clientActivities
       .filter(
         (activity) =>
-          activity.clientId === selectedClient.id && activity.isActive,
+          activity.clientId === selectedClient.id &&
+          activity.isActive &&
+          activity.scheduledMonths.includes(Number(month.slice(5))),
       )
       .sort((left, right) => left.displayOrder - right.displayOrder);
-  }, [clientActivities, selectedClient]);
+  }, [clientActivities, month, selectedClient]);
 
   const checklistModalClientActivities = useMemo(() => {
     if (!checklistModalClient) {
@@ -450,10 +458,12 @@ export function useEmpresasDashboardState() {
     return clientActivities
       .filter(
         (activity) =>
-          activity.clientId === checklistModalClient.id && activity.isActive,
+          activity.clientId === checklistModalClient.id &&
+          activity.isActive &&
+          activity.scheduledMonths.includes(Number(month.slice(5))),
       )
       .sort((left, right) => left.displayOrder - right.displayOrder);
-  }, [checklistModalClient, clientActivities]);
+  }, [checklistModalClient, clientActivities, month]);
 
   const currentMonthEntryMap = useMemo(() => {
     const map = new Map<string, ChecklistEntry>();
@@ -607,6 +617,9 @@ export function useEmpresasDashboardState() {
 
     for (const activity of clientActivities) {
       if (!activity.isActive) {
+        continue;
+      }
+      if (!activity.scheduledMonths.includes(Number(month.slice(5)))) {
         continue;
       }
       const current = map.get(activity.clientId);
@@ -921,7 +934,14 @@ export function useEmpresasDashboardState() {
 
   const closeChecklistModal = useCallback(() => {
     setChecklistModalClientId(null);
-  }, []);
+    if (searchParams.get("checklist") !== "1") return;
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("checklist");
+    const queryString = next.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
+  }, [pathname, router, searchParams]);
 
   const goToMemberClients = useCallback(
     (memberId: string) => {
@@ -938,19 +958,20 @@ export function useEmpresasDashboardState() {
       const next = new URLSearchParams();
       next.set("month", month);
       next.set("clientId", clientId);
+      next.set("checklist", "1");
       router.push(`/empresas?${next.toString()}`);
     },
     [month, router],
   );
 
   useEffect(() => {
-    if (!checklistModalClientId) {
+    if (!checklistModalClient) {
       return;
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setChecklistModalClientId(null);
+        closeChecklistModal();
       }
     };
 
@@ -958,7 +979,7 @@ export function useEmpresasDashboardState() {
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [checklistModalClientId]);
+  }, [checklistModalClient, closeChecklistModal]);
 
   const assignableMembers = useMemo(() => {
     if (!currentUser) {
@@ -1043,6 +1064,10 @@ export function useEmpresasDashboardState() {
       toast.warning("El peso debe estar entre 1 y 100.");
       return false;
     }
+    if (!newTemplateScheduledMonths.length) {
+      toast.warning("Selecciona al menos un mes para la actividad.");
+      return false;
+    }
     try {
       const data = await backendFetch<DbTemplateRow>("/templates", {
         method: "POST",
@@ -1051,12 +1076,16 @@ export function useEmpresasDashboardState() {
           name: trimmedName,
           areaId: newTemplateAreaId,
           defaultWeight: newTemplateWeight,
+          scheduledMonths: newTemplateScheduledMonths,
         }),
       });
       setTemplates((current) => [...current, normalizeTemplate(data)]);
       setNewTemplateName("");
       setNewTemplateAreaId("");
       setNewTemplateWeight(10);
+      setNewTemplateScheduledMonths(
+        Array.from({ length: 12 }, (_, index) => index + 1),
+      );
       toast.success("Actividad estandar creada.");
       return true;
     } catch (error) {
@@ -1420,6 +1449,8 @@ export function useEmpresasDashboardState() {
     onCreateArea,
     newTemplateWeight,
     setNewTemplateWeight,
+    newTemplateScheduledMonths,
+    setNewTemplateScheduledMonths,
     onCreateTemplate,
     toggleTemplateActive,
     updateTemplateWeight,
