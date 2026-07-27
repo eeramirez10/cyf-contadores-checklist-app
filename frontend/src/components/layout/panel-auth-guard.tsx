@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuth } from "@/features/auth/components/auth-provider";
+import { PanelLoader } from "@/components/layout/panel-loader";
 
 type PanelAuthGuardProps = {
   children: React.ReactNode;
@@ -19,13 +20,7 @@ export function PanelAuthGuard({ children }: PanelAuthGuardProps) {
   }, [router, status]);
 
   if (status === "loading") {
-    return (
-      <main className="app-grid-bg min-h-screen px-4 py-10 md:px-8">
-        <div className="mx-auto max-w-2xl rounded-2xl border border-[var(--line)] bg-white p-6 text-sm text-[var(--foreground-soft)]">
-          Verificando sesion...
-        </div>
-      </main>
-    );
+    return <PanelLoader fullScreen />;
   }
 
   if (status !== "authenticated") {

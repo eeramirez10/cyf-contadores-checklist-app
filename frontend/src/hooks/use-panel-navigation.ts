@@ -41,6 +41,8 @@ const NAV_ITEMS: PanelNavItem[] = [
     label: "Jerarquia",
     description: "Administrador, lideres, contadores y empresas",
     section: "jerarquia",
+    // Keep the route available without exposing it in the primary navigation.
+    inSidebar: false,
   },
   {
     href: "/empresas",
@@ -112,7 +114,8 @@ export const usePanelNavigation = () => {
   );
 
   const activeItem = useMemo(
-    () => NAV_ITEMS.find((item) => item.section === activeSection) ?? NAV_ITEMS[0],
+    () =>
+      NAV_ITEMS.find((item) => item.section === activeSection) ?? NAV_ITEMS[0],
     [activeSection],
   );
 

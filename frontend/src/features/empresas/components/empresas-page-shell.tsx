@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { EmpresasDashboardState } from "@/features/empresas/hooks/use-empresas-dashboard-state";
+import { PanelLoader } from "@/components/layout/panel-loader";
 
 type EmpresasPageShellProps = {
   state: EmpresasDashboardState;
@@ -9,12 +10,8 @@ type EmpresasPageShellProps = {
 };
 
 export function EmpresasPageShell({ state, children }: EmpresasPageShellProps) {
-  if (state.authLoading) {
-    return (
-      <article className="surface rounded-3xl p-6 text-sm text-[var(--foreground-soft)]">
-        Cargando sesion...
-      </article>
-    );
+  if (state.authLoading || !state.hasLoadedData) {
+    return <PanelLoader />;
   }
 
   if (!state.session) {
@@ -28,9 +25,12 @@ export function EmpresasPageShell({ state, children }: EmpresasPageShellProps) {
   if (!state.currentUser) {
     return (
       <article className="surface rounded-3xl p-6">
-        <h2 className="display-title text-2xl font-semibold">Perfil sin permisos</h2>
+        <h2 className="display-title text-2xl font-semibold">
+          Perfil sin permisos
+        </h2>
         <p className="mt-2 text-sm text-[var(--foreground-soft)]">
-          Tu usuario local esta autenticado, pero no tiene un perfil disponible para el panel.
+          Tu usuario local esta autenticado, pero no tiene un perfil disponible
+          para el panel.
         </p>
         <button
           type="button"

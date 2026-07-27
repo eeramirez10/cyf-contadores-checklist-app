@@ -117,6 +117,7 @@ export function useEmpresasDashboardState() {
   const [entries, setEntries] = useState<ChecklistEntry[]>([]);
   const [assignments, setAssignments] = useState<ChecklistAssignment[]>([]);
   const [dataLoading, setDataLoading] = useState<boolean>(false);
+  const [hasLoadedData, setHasLoadedData] = useState(false);
   const [message, setMessage] = useState<string>("");
 
   const [selectedLeaderId, setSelectedLeaderId] = useState<string | null>(null);
@@ -241,6 +242,7 @@ export function useEmpresasDashboardState() {
       );
     } finally {
       setDataLoading(false);
+      setHasLoadedData(true);
     }
   }, [backendAuthStatus, month]);
 
@@ -1503,6 +1505,7 @@ export function useEmpresasDashboardState() {
     authLoading,
     currentUser,
     dataLoading,
+    hasLoadedData,
     message,
     setMessage,
     signOut,
@@ -1511,6 +1514,8 @@ export function useEmpresasDashboardState() {
 
     users,
     groups,
+    clients,
+    clientActivities,
     usersById,
     groupsById,
 

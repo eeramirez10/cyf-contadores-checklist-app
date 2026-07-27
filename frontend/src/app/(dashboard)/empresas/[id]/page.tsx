@@ -6,6 +6,9 @@ type EmpresaRoutePageProps = {
   }>;
 };
 
-export default async function EmpresaRoutePage({ params }: EmpresaRoutePageProps) {
-  return <EmpresaDetailPage params={params} />;
+export default async function EmpresaRoutePage({
+  params,
+}: EmpresaRoutePageProps) {
+  const { id } = await params;
+  return <EmpresaDetailPage clientId={id} />;
 }
