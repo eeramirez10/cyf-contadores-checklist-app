@@ -59,6 +59,28 @@ type DashboardCatalog = {
   entries: DbChecklistRow[];
 };
 
+type CompanyContactDraft = {
+  name: string;
+  position: string;
+  email: string;
+  phone: string;
+  whatsappPhone: string;
+  notes: string;
+  isPrimary: boolean;
+};
+
+type PostalCodeOption = { state: string; city: string };
+
+const emptyCompanyContact = (): CompanyContactDraft => ({
+  name: "",
+  position: "",
+  email: "",
+  phone: "",
+  whatsappPhone: "",
+  notes: "",
+  isPrimary: false,
+});
+
 export function useEmpresasDashboardState() {
   const router = useRouter();
   const pathname = usePathname();
@@ -75,7 +97,9 @@ export function useEmpresasDashboardState() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [templates, setTemplates] = useState<ActivityTemplate[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
-  const [clientActivities, setClientActivities] = useState<ClientActivity[]>([]);
+  const [clientActivities, setClientActivities] = useState<ClientActivity[]>(
+    [],
+  );
   const [entries, setEntries] = useState<ChecklistEntry[]>([]);
   const [dataLoading, setDataLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
@@ -86,27 +110,58 @@ export function useEmpresasDashboardState() {
 
   const [newClientName, setNewClientName] = useState<string>("");
   const [newClientMemberId, setNewClientMemberId] = useState<string>("");
+  const [newClientDetails, setNewClientDetails] = useState({
+    legalName: "",
+    rfc: "",
+    taxRegime: "",
+    ekeyReference: "",
+    street: "",
+    exteriorNumber: "",
+    interiorNumber: "",
+    colony: "",
+    postalCode: "",
+    city: "",
+    state: "",
+  });
+  const [newClientContacts, setNewClientContacts] = useState<
+    CompanyContactDraft[]
+  >([{ ...emptyCompanyContact(), isPrimary: true }]);
+  const [postalCodeOptions, setPostalCodeOptions] = useState<
+    PostalCodeOption[]
+  >([]);
+  const [postalLookupLoading, setPostalLookupLoading] = useState(false);
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
   const [newTemplateName, setNewTemplateName] = useState<string>("");
   const [newTemplateArea, setNewTemplateArea] = useState<Area>("VENTAS");
   const [newTemplateWeight, setNewTemplateWeight] = useState<number>(10);
   const [memberSearchQuery, setMemberSearchQuery] = useState<string>("");
   const [memberPage, setMemberPage] = useState<number>(1);
-  const [memberClientSearchQuery, setMemberClientSearchQuery] = useState<string>("");
+  const [memberClientSearchQuery, setMemberClientSearchQuery] =
+    useState<string>("");
   const [memberClientPage, setMemberClientPage] = useState<number>(1);
   const [clientsSearchQuery, setClientsSearchQuery] = useState<string>("");
   const [clientsMemberFilter, setClientsMemberFilter] = useState<string>(
     () => searchParams.get("memberId") ?? "ALL",
   );
   const [clientsPage, setClientsPage] = useState<number>(1);
-  const [clientsSortKey, setClientsSortKey] = useState<ClientTableSortKey>("client");
-  const [clientsSortDirection, setClientsSortDirection] = useState<SortDirection>("asc");
-  const [checklistModalClientId, setChecklistModalClientId] = useState<string | null>(null);
+  const [clientsSortKey, setClientsSortKey] =
+    useState<ClientTableSortKey>("client");
+  const [clientsSortDirection, setClientsSortDirection] =
+    useState<SortDirection>("asc");
+  const [checklistModalClientId, setChecklistModalClientId] = useState<
+    string | null
+  >(null);
 
   const currentUser = users.find((item) => item.id === backendUser?.id) ?? null;
 
-  const usersById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users]);
-  const groupsById = useMemo(() => new Map(groups.map((group) => [group.id, group])), [groups]);
+  const usersById = useMemo(
+    () => new Map(users.map((user) => [user.id, user])),
+    [users],
+  );
+  const groupsById = useMemo(
+    () => new Map(groups.map((group) => [group.id, group])),
+    [groups],
+  );
   const monthFromQuery = searchParams.get("month");
   const memberIdFromQuery = searchParams.get("memberId");
   const clientIdFromQuery = searchParams.get("clientId");
@@ -118,11 +173,15 @@ export function useEmpresasDashboardState() {
   }, [monthFromQuery]);
   const setMonth = useCallback(
     (nextMonth: string) => {
-      const normalized = /^\d{4}-\d{2}$/.test(nextMonth) ? nextMonth : currentMonthKey();
+      const normalized = /^\d{4}-\d{2}$/.test(nextMonth)
+        ? nextMonth
+        : currentMonthKey();
       const next = new URLSearchParams(searchParams.toString());
       next.set("month", normalized);
       const queryString = next.toString();
-      router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
+      router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+        scroll: false,
+      });
     },
     [pathname, router, searchParams],
   );
@@ -134,7 +193,8 @@ export function useEmpresasDashboardState() {
     setDataLoading(true);
     setMessage("");
     try {
-      const catalog = await backendFetch<DashboardCatalog>("/catalog/dashboard");
+      const catalog =
+        await backendFetch<DashboardCatalog>("/catalog/dashboard");
       setUsers(catalog.profiles.map(normalizeUser));
       setGroups(catalog.groups.map(normalizeGroup));
       setTemplates(catalog.templates.map(normalizeTemplate));
@@ -142,7 +202,11 @@ export function useEmpresasDashboardState() {
       setClientActivities(catalog.activities.map(normalizeClientActivity));
       setEntries(catalog.entries.map(normalizeChecklist));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No se pudieron cargar los datos.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No se pudieron cargar los datos.",
+      );
     } finally {
       setDataLoading(false);
     }
@@ -165,11 +229,17 @@ export function useEmpresasDashboardState() {
   }, [backendAuthStatus, router]);
 
   const leaders = useMemo(
-    () => users.filter((user) => user.role === "LEADER").sort((a, b) => a.name.localeCompare(b.name)),
+    () =>
+      users
+        .filter((user) => user.role === "LEADER")
+        .sort((a, b) => a.name.localeCompare(b.name)),
     [users],
   );
   const members = useMemo(
-    () => users.filter((user) => user.role === "MEMBER").sort((a, b) => a.name.localeCompare(b.name)),
+    () =>
+      users
+        .filter((user) => user.role === "MEMBER")
+        .sort((a, b) => a.name.localeCompare(b.name)),
     [users],
   );
 
@@ -205,7 +275,9 @@ export function useEmpresasDashboardState() {
   );
 
   const clientsVisibleToCurrent = useMemo(() => {
-    return clients.filter((client) => client.isActive && memberIdsVisible.has(client.memberId));
+    return clients.filter(
+      (client) => client.isActive && memberIdsVisible.has(client.memberId),
+    );
   }, [clients, memberIdsVisible]);
 
   const clientsByMember = useMemo(() => {
@@ -225,7 +297,9 @@ export function useEmpresasDashboardState() {
     if (!clientIdFromQuery) {
       return null;
     }
-    const queryClient = clientsVisibleToCurrent.find((client) => client.id === clientIdFromQuery);
+    const queryClient = clientsVisibleToCurrent.find(
+      (client) => client.id === clientIdFromQuery,
+    );
     return queryClient?.memberId ?? null;
   }, [clientIdFromQuery, clientsVisibleToCurrent]);
 
@@ -240,7 +314,9 @@ export function useEmpresasDashboardState() {
     if (!memberIdFromQuery) {
       return null;
     }
-    if (!membersVisibleToCurrent.some((member) => member.id === memberIdFromQuery)) {
+    if (
+      !membersVisibleToCurrent.some((member) => member.id === memberIdFromQuery)
+    ) {
       return null;
     }
     return usersById.get(memberIdFromQuery)?.leaderId ?? null;
@@ -252,18 +328,24 @@ export function useEmpresasDashboardState() {
       : leadersVisibleToCurrent.some((leader) => leader.id === selectedLeaderId)
         ? selectedLeaderId
         : leaderIdFromQueryClient &&
-            leadersVisibleToCurrent.some((leader) => leader.id === leaderIdFromQueryClient)
+            leadersVisibleToCurrent.some(
+              (leader) => leader.id === leaderIdFromQueryClient,
+            )
           ? leaderIdFromQueryClient
-        : leaderIdFromQueryMember &&
-            leadersVisibleToCurrent.some((leader) => leader.id === leaderIdFromQueryMember)
-          ? leaderIdFromQueryMember
-        : leadersVisibleToCurrent[0]?.id ?? null;
+          : leaderIdFromQueryMember &&
+              leadersVisibleToCurrent.some(
+                (leader) => leader.id === leaderIdFromQueryMember,
+              )
+            ? leaderIdFromQueryMember
+            : (leadersVisibleToCurrent[0]?.id ?? null);
 
   const membersUnderSelectedLeader = useMemo(() => {
     if (!selectedLeaderValue) {
       return [];
     }
-    return membersVisibleToCurrent.filter((member) => member.leaderId === selectedLeaderValue);
+    return membersVisibleToCurrent.filter(
+      (member) => member.leaderId === selectedLeaderValue,
+    );
   }, [membersVisibleToCurrent, selectedLeaderValue]);
 
   const selectedMemberValue =
@@ -272,12 +354,18 @@ export function useEmpresasDashboardState() {
       : membersVisibleToCurrent.some((member) => member.id === selectedMemberId)
         ? selectedMemberId
         : memberIdFromQuery &&
-            membersVisibleToCurrent.some((member) => member.id === memberIdFromQuery)
+            membersVisibleToCurrent.some(
+              (member) => member.id === memberIdFromQuery,
+            )
           ? memberIdFromQuery
-        : memberIdFromQueryClient &&
-            membersVisibleToCurrent.some((member) => member.id === memberIdFromQueryClient)
-          ? memberIdFromQueryClient
-        : membersUnderSelectedLeader[0]?.id ?? membersVisibleToCurrent[0]?.id ?? null;
+          : memberIdFromQueryClient &&
+              membersVisibleToCurrent.some(
+                (member) => member.id === memberIdFromQueryClient,
+              )
+            ? memberIdFromQueryClient
+            : (membersUnderSelectedLeader[0]?.id ??
+              membersVisibleToCurrent[0]?.id ??
+              null);
 
   const selectedMemberClients = useMemo(() => {
     if (!selectedMemberValue) {
@@ -287,7 +375,10 @@ export function useEmpresasDashboardState() {
   }, [clientsByMember, selectedMemberValue]);
 
   const selectedClientValue = useMemo(() => {
-    if (selectedClientId && clientsVisibleToCurrent.some((client) => client.id === selectedClientId)) {
+    if (
+      selectedClientId &&
+      clientsVisibleToCurrent.some((client) => client.id === selectedClientId)
+    ) {
       return selectedClientId;
     }
     if (
@@ -312,14 +403,19 @@ export function useEmpresasDashboardState() {
   ]);
 
   const selectedClient = useMemo(
-    () => clientsVisibleToCurrent.find((client) => client.id === selectedClientValue) ?? null,
+    () =>
+      clientsVisibleToCurrent.find(
+        (client) => client.id === selectedClientValue,
+      ) ?? null,
     [clientsVisibleToCurrent, selectedClientValue],
   );
 
   const checklistModalClient = useMemo(
     () =>
       checklistModalClientId
-        ? clientsVisibleToCurrent.find((client) => client.id === checklistModalClientId) ?? null
+        ? (clientsVisibleToCurrent.find(
+            (client) => client.id === checklistModalClientId,
+          ) ?? null)
         : null,
     [checklistModalClientId, clientsVisibleToCurrent],
   );
@@ -329,7 +425,10 @@ export function useEmpresasDashboardState() {
       return [];
     }
     return clientActivities
-      .filter((activity) => activity.clientId === selectedClient.id && activity.isActive)
+      .filter(
+        (activity) =>
+          activity.clientId === selectedClient.id && activity.isActive,
+      )
       .sort((left, right) => left.displayOrder - right.displayOrder);
   }, [clientActivities, selectedClient]);
 
@@ -338,7 +437,10 @@ export function useEmpresasDashboardState() {
       return [];
     }
     return clientActivities
-      .filter((activity) => activity.clientId === checklistModalClient.id && activity.isActive)
+      .filter(
+        (activity) =>
+          activity.clientId === checklistModalClient.id && activity.isActive,
+      )
       .sort((left, right) => left.displayOrder - right.displayOrder);
   }, [checklistModalClient, clientActivities]);
 
@@ -373,7 +475,9 @@ export function useEmpresasDashboardState() {
   const progressByMember = useMemo(() => {
     const map = new Map<string, number>();
     for (const member of membersVisibleToCurrent) {
-      const memberClientIds = (clientsByMember.get(member.id) ?? []).map((client) => client.id);
+      const memberClientIds = (clientsByMember.get(member.id) ?? []).map(
+        (client) => client.id,
+      );
       map.set(
         member.id,
         calculateProgress({
@@ -385,7 +489,13 @@ export function useEmpresasDashboardState() {
       );
     }
     return map;
-  }, [clientActivities, clientsByMember, entries, membersVisibleToCurrent, month]);
+  }, [
+    clientActivities,
+    clientsByMember,
+    entries,
+    membersVisibleToCurrent,
+    month,
+  ]);
 
   const progressByLeader = useMemo(() => {
     const map = new Map<string, number>();
@@ -502,7 +612,8 @@ export function useEmpresasDashboardState() {
       current.completedCount += 1;
       if (
         currentEntry.completedAt &&
-        (!current.lastCompletedAt || currentEntry.completedAt > current.lastCompletedAt)
+        (!current.lastCompletedAt ||
+          currentEntry.completedAt > current.lastCompletedAt)
       ) {
         current.lastCompletedAt = currentEntry.completedAt;
       }
@@ -559,9 +670,11 @@ export function useEmpresasDashboardState() {
     const rows = membersVisibleToCurrent
       .map((member) => {
         const leaderName = member.leaderId
-          ? usersById.get(member.leaderId)?.name ?? "Sin lider de grupo"
+          ? (usersById.get(member.leaderId)?.name ?? "Sin lider de grupo")
           : "Sin lider de grupo";
-        const groupName = member.groupId ? groupsById.get(member.groupId)?.name ?? "Sin grupo" : "Sin grupo";
+        const groupName = member.groupId
+          ? (groupsById.get(member.groupId)?.name ?? "Sin grupo")
+          : "Sin grupo";
         const memberClients = clientsByMember.get(member.id) ?? [];
         return {
           id: member.id,
@@ -585,13 +698,27 @@ export function useEmpresasDashboardState() {
         row.groupName.toLowerCase().includes(query)
       );
     });
-  }, [clientsByMember, groupsById, memberSearchQuery, membersVisibleToCurrent, progressByMember, usersById]);
+  }, [
+    clientsByMember,
+    groupsById,
+    memberSearchQuery,
+    membersVisibleToCurrent,
+    progressByMember,
+    usersById,
+  ]);
 
   const memberPageSize = 8;
-  const memberTotalPages = Math.max(1, Math.ceil(memberDirectoryRows.length / memberPageSize));
+  const memberTotalPages = Math.max(
+    1,
+    Math.ceil(memberDirectoryRows.length / memberPageSize),
+  );
   const memberCurrentPage = Math.min(memberPage, memberTotalPages);
   const visibleMemberRows = useMemo(() => {
-    return paginateItems(memberDirectoryRows, memberCurrentPage, memberPageSize);
+    return paginateItems(
+      memberDirectoryRows,
+      memberCurrentPage,
+      memberPageSize,
+    );
   }, [memberCurrentPage, memberDirectoryRows]);
 
   const clientsBySelectedMemberFiltered = useMemo(() => {
@@ -604,14 +731,22 @@ export function useEmpresasDashboardState() {
       return base;
     }
     return base.filter((client) => client.name.toLowerCase().includes(query));
-  }, [currentUser?.role, clientsVisibleToCurrent, memberClientSearchQuery, selectedMemberClients]);
+  }, [
+    currentUser?.role,
+    clientsVisibleToCurrent,
+    memberClientSearchQuery,
+    selectedMemberClients,
+  ]);
 
   const memberClientPageSize = 10;
   const memberClientTotalPages = Math.max(
     1,
     Math.ceil(clientsBySelectedMemberFiltered.length / memberClientPageSize),
   );
-  const memberClientCurrentPage = Math.min(memberClientPage, memberClientTotalPages);
+  const memberClientCurrentPage = Math.min(
+    memberClientPage,
+    memberClientTotalPages,
+  );
   const visibleMemberClients = useMemo(() => {
     return paginateItems(
       clientsBySelectedMemberFiltered,
@@ -625,7 +760,9 @@ export function useEmpresasDashboardState() {
     const scopedByMember =
       clientsMemberFilter === "ALL"
         ? clientsVisibleToCurrent
-        : clientsVisibleToCurrent.filter((client) => client.memberId === clientsMemberFilter);
+        : clientsVisibleToCurrent.filter(
+            (client) => client.memberId === clientsMemberFilter,
+          );
 
     const filtered = scopedByMember.filter((client) => {
       if (!query) {
@@ -633,32 +770,36 @@ export function useEmpresasDashboardState() {
       }
       const ownerName = usersById.get(client.memberId)?.name ?? "";
       return (
-        client.name.toLowerCase().includes(query) || ownerName.toLowerCase().includes(query)
+        client.name.toLowerCase().includes(query) ||
+        ownerName.toLowerCase().includes(query)
       );
     });
 
-    const rows = filtered
-      .map((client) => {
-        const member = usersById.get(client.memberId);
-        const stats = checklistStatsByClient.get(client.id);
-        return {
-          client,
-          ownerName: member?.name ?? "Sin contador",
-          groupName: member?.groupId ? groupsById.get(member.groupId)?.name ?? "Sin grupo" : "Sin grupo",
-          progress: progressByClient.get(client.id) ?? 0,
-          ventas: progressByClientVentas.get(client.id) ?? 0,
-          produccion: progressByClientProduccion.get(client.id) ?? 0,
-          completedCount: stats?.completedCount ?? 0,
-          totalCount: stats?.totalCount ?? 0,
-          lastCompletedAt: stats?.lastCompletedAt ?? null,
-        };
-      });
+    const rows = filtered.map((client) => {
+      const member = usersById.get(client.memberId);
+      const stats = checklistStatsByClient.get(client.id);
+      return {
+        client,
+        ownerName: member?.name ?? "Sin contador",
+        groupName: member?.groupId
+          ? (groupsById.get(member.groupId)?.name ?? "Sin grupo")
+          : "Sin grupo",
+        progress: progressByClient.get(client.id) ?? 0,
+        ventas: progressByClientVentas.get(client.id) ?? 0,
+        produccion: progressByClientProduccion.get(client.id) ?? 0,
+        completedCount: stats?.completedCount ?? 0,
+        totalCount: stats?.totalCount ?? 0,
+        lastCompletedAt: stats?.lastCompletedAt ?? null,
+      };
+    });
 
     const directionFactor = clientsSortDirection === "asc" ? 1 : -1;
 
     rows.sort((left, right) => {
       if (clientsSortKey === "client") {
-        return left.client.name.localeCompare(right.client.name) * directionFactor;
+        return (
+          left.client.name.localeCompare(right.client.name) * directionFactor
+        );
       }
       if (clientsSortKey === "owner") {
         return left.ownerName.localeCompare(right.ownerName) * directionFactor;
@@ -667,8 +808,10 @@ export function useEmpresasDashboardState() {
         return left.groupName.localeCompare(right.groupName) * directionFactor;
       }
       if (clientsSortKey === "checks") {
-        const leftRatio = left.totalCount > 0 ? left.completedCount / left.totalCount : 0;
-        const rightRatio = right.totalCount > 0 ? right.completedCount / right.totalCount : 0;
+        const leftRatio =
+          left.totalCount > 0 ? left.completedCount / left.totalCount : 0;
+        const rightRatio =
+          right.totalCount > 0 ? right.completedCount / right.totalCount : 0;
         if (leftRatio === rightRatio) {
           return (left.completedCount - right.completedCount) * directionFactor;
         }
@@ -687,7 +830,9 @@ export function useEmpresasDashboardState() {
       const leftHasDate = Boolean(left.lastCompletedAt);
       const rightHasDate = Boolean(right.lastCompletedAt);
       if (!leftHasDate && !rightHasDate) {
-        return left.client.name.localeCompare(right.client.name) * directionFactor;
+        return (
+          left.client.name.localeCompare(right.client.name) * directionFactor
+        );
       }
       if (!leftHasDate) {
         return 1;
@@ -698,7 +843,9 @@ export function useEmpresasDashboardState() {
       const leftTime = Date.parse(left.lastCompletedAt as string);
       const rightTime = Date.parse(right.lastCompletedAt as string);
       if (Number.isNaN(leftTime) || Number.isNaN(rightTime)) {
-        return left.client.name.localeCompare(right.client.name) * directionFactor;
+        return (
+          left.client.name.localeCompare(right.client.name) * directionFactor
+        );
       }
       return (leftTime - rightTime) * directionFactor;
     });
@@ -719,7 +866,10 @@ export function useEmpresasDashboardState() {
   ]);
 
   const clientsPageSize = 12;
-  const clientsTotalPages = Math.max(1, Math.ceil(clientsTableRows.length / clientsPageSize));
+  const clientsTotalPages = Math.max(
+    1,
+    Math.ceil(clientsTableRows.length / clientsPageSize),
+  );
   const clientsCurrentPage = Math.min(clientsPage, clientsTotalPages);
   const visibleClientRows = useMemo(() => {
     return paginateItems(clientsTableRows, clientsCurrentPage, clientsPageSize);
@@ -728,7 +878,9 @@ export function useEmpresasDashboardState() {
   const toggleClientsSort = (key: ClientTableSortKey) => {
     setClientsPage(1);
     if (clientsSortKey === key) {
-      setClientsSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      setClientsSortDirection((current) =>
+        current === "asc" ? "desc" : "asc",
+      );
       return;
     }
     setClientsSortKey(key);
@@ -744,7 +896,9 @@ export function useEmpresasDashboardState() {
 
   const openChecklistModal = useCallback(
     (clientId: string) => {
-      const client = clientsVisibleToCurrent.find((item) => item.id === clientId);
+      const client = clientsVisibleToCurrent.find(
+        (item) => item.id === clientId,
+      );
       if (!client) {
         return;
       }
@@ -808,10 +962,11 @@ export function useEmpresasDashboardState() {
     return members.filter((member) => member.id === currentUser.id);
   }, [currentUser, members]);
 
-  const assignableMemberValue =
-    assignableMembers.some((member) => member.id === newClientMemberId)
-      ? newClientMemberId
-      : assignableMembers[0]?.id ?? "";
+  const assignableMemberValue = assignableMembers.some(
+    (member) => member.id === newClientMemberId,
+  )
+    ? newClientMemberId
+    : (assignableMembers[0]?.id ?? "");
 
   const signOut = async () => {
     await signOutFromBackend();
@@ -898,11 +1053,14 @@ export function useEmpresasDashboardState() {
 
   const toggleTemplateActive = async (template: ActivityTemplate) => {
     try {
-      const updated = await backendFetch<DbTemplateRow>(`/templates/${template.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isActive: !template.isActive }),
-      });
+      const updated = await backendFetch<DbTemplateRow>(
+        `/templates/${template.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isActive: !template.isActive }),
+        },
+      );
       const normalized = normalizeTemplate(updated);
       setTemplates((current) =>
         current.map((item) => (item.id === normalized.id ? normalized : item)),
@@ -916,16 +1074,22 @@ export function useEmpresasDashboardState() {
     }
   };
 
-  const updateTemplateWeight = async (template: ActivityTemplate, nextWeight: number) => {
+  const updateTemplateWeight = async (
+    template: ActivityTemplate,
+    nextWeight: number,
+  ) => {
     if (!Number.isFinite(nextWeight) || nextWeight <= 0 || nextWeight > 100) {
       return;
     }
     try {
-      const updated = await backendFetch<DbTemplateRow>(`/templates/${template.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ defaultWeight: nextWeight }),
-      });
+      const updated = await backendFetch<DbTemplateRow>(
+        `/templates/${template.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ defaultWeight: nextWeight }),
+        },
+      );
       const normalized = normalizeTemplate(updated);
       setTemplates((current) =>
         current.map((item) => (item.id === normalized.id ? normalized : item)),
@@ -954,19 +1118,87 @@ export function useEmpresasDashboardState() {
       toast.warning("Selecciona al menos una actividad estandar.");
       return;
     }
+    if (
+      !newClientDetails.legalName.trim() ||
+      !newClientDetails.rfc.trim() ||
+      !newClientDetails.taxRegime
+    ) {
+      toast.warning("Completa razon social, RFC y regimen fiscal.");
+      return;
+    }
+    if (
+      !newClientDetails.street.trim() ||
+      !newClientDetails.exteriorNumber.trim() ||
+      !newClientDetails.city ||
+      !newClientDetails.state ||
+      !/^\d{5}$/.test(newClientDetails.postalCode)
+    ) {
+      toast.warning(
+        "Completa la direccion y un codigo postal de cinco digitos.",
+      );
+      return;
+    }
+    if (
+      !newClientContacts.length ||
+      newClientContacts.some(
+        (contact) =>
+          !contact.name.trim() ||
+          (!contact.email.trim() &&
+            !contact.phone.trim() &&
+            !contact.whatsappPhone.trim()),
+      )
+    ) {
+      toast.warning(
+        "Agrega al menos un contacto con nombre y medio de contacto.",
+      );
+      return;
+    }
 
     try {
-      const { clientId } = await backendFetch<{ clientId: string }>("/companies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: trimmedName,
-          memberId: assignableMemberValue,
-          templateIds: selectedTemplateIds,
-        }),
-      });
+      const { clientId } = await backendFetch<{ clientId: string }>(
+        "/companies",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: trimmedName,
+            legalName: newClientDetails.legalName,
+            rfc: newClientDetails.rfc,
+            taxRegime: newClientDetails.taxRegime,
+            ekeyReference: newClientDetails.ekeyReference || undefined,
+            address: {
+              street: newClientDetails.street,
+              exteriorNumber: newClientDetails.exteriorNumber,
+              interiorNumber: newClientDetails.interiorNumber || undefined,
+              colony: newClientDetails.colony || undefined,
+              postalCode: newClientDetails.postalCode,
+              city: newClientDetails.city,
+              state: newClientDetails.state,
+              country: "Mexico",
+            },
+            contacts: newClientContacts,
+            memberId: assignableMemberValue,
+            templateIds: selectedTemplateIds,
+          }),
+        },
+      );
       setSelectedTemplateIds([]);
       setNewClientName("");
+      setNewClientDetails({
+        legalName: "",
+        rfc: "",
+        taxRegime: "",
+        ekeyReference: "",
+        street: "",
+        exteriorNumber: "",
+        interiorNumber: "",
+        colony: "",
+        postalCode: "",
+        city: "",
+        state: "",
+      });
+      setNewClientContacts([{ ...emptyCompanyContact(), isPrimary: true }]);
+      setPostalCodeOptions([]);
       setSelectedClientId(clientId);
       setSelectedMemberId(assignableMemberValue);
       const member = usersById.get(assignableMemberValue);
@@ -977,13 +1209,47 @@ export function useEmpresasDashboardState() {
       toast.success("Empresa creada con checklist base.");
     } catch (error) {
       const selectedMemberName =
-        usersById.get(assignableMemberValue)?.name ?? assignableMemberValue ?? "N/A";
-      const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+        usersById.get(assignableMemberValue)?.name ??
+        assignableMemberValue ??
+        "N/A";
+      const errorMessage =
+        error instanceof Error ? error.message : "Error desconocido";
       if (errorMessage.toLowerCase().includes("sin permisos")) {
-        toast.error(`Sin permisos para crear empresa con contador ${selectedMemberName}.`);
+        toast.error(
+          `Sin permisos para crear empresa con contador ${selectedMemberName}.`,
+        );
       } else {
         toast.error(`No se pudo crear empresa: ${errorMessage}`);
       }
+    }
+  };
+
+  const lookupPostalCode = async () => {
+    const postalCode = newClientDetails.postalCode.trim();
+    if (!/^\d{5}$/.test(postalCode)) return;
+    setPostalLookupLoading(true);
+    try {
+      const result = await backendFetch<{ options: PostalCodeOption[] }>(
+        `/companies/postal-codes/${postalCode}`,
+      );
+      setPostalCodeOptions(result.options);
+      const first = result.options[0];
+      if (first) {
+        setNewClientDetails((current) => ({
+          ...current,
+          state: first.state,
+          city: first.city,
+        }));
+      }
+    } catch (error) {
+      setPostalCodeOptions([]);
+      toast.warning(
+        error instanceof Error
+          ? error.message
+          : "No se encontro el codigo postal.",
+      );
+    } finally {
+      setPostalLookupLoading(false);
     }
   };
 
@@ -1084,6 +1350,13 @@ export function useEmpresasDashboardState() {
     setNewClientName,
     newClientMemberId,
     setNewClientMemberId,
+    newClientDetails,
+    setNewClientDetails,
+    newClientContacts,
+    setNewClientContacts,
+    postalCodeOptions,
+    postalLookupLoading,
+    lookupPostalCode,
     selectedTemplateIds,
     setSelectedTemplateIds,
     onCreateClient,
@@ -1103,4 +1376,6 @@ export function useEmpresasDashboardState() {
   };
 }
 
-export type EmpresasDashboardState = ReturnType<typeof useEmpresasDashboardState>;
+export type EmpresasDashboardState = ReturnType<
+  typeof useEmpresasDashboardState
+>;

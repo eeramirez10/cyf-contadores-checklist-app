@@ -568,6 +568,18 @@ model client_activities {
 model clients {
   id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name              String
+  legal_name        String?
+  rfc               String?             @db.VarChar(13)
+  tax_regime        String?
+  ekey_reference    String?
+  address_street    String?
+  address_ext_no    String?
+  address_int_no    String?
+  address_colony    String?
+  address_postal_code String?           @db.VarChar(5)
+  address_city      String?
+  address_state     String?
+  address_country   String?             @default("Mexico")
   member_id         String              @db.Uuid
   is_active         Boolean             @default(true)
   created_at        DateTime            @default(now()) @db.Timestamptz(6)
@@ -588,6 +600,8 @@ model contacts {
   email               String?
   phone               String?
   whatsapp_phone      String?
+  position            String?
+  is_primary          Boolean               @default(false)
   notes               String?
   created_by          String?               @default(dbgenerated("auth.uid()")) @db.Uuid
   created_at          DateTime              @default(now()) @db.Timestamptz(6)

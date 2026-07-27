@@ -20,6 +20,7 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "db:apply:local-auth": "prisma db execute --schema prisma/schema.prisma --file prisma/manual-migrations/20260723_01_local_auth.sql",
+    "db:apply:company-profile": "prisma db execute --schema prisma/schema.prisma --file prisma/manual-migrations/20260726_02_company_profile.sql",
     "auth:bootstrap-admin": "pnpm build && node dist/scripts/bootstrap-local-admin",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",

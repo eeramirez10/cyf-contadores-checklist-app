@@ -31,6 +31,16 @@ LOCAL_ADMIN_EMAIL=admin@example.com LOCAL_ADMIN_PASSWORD='use-a-long-unique-pass
 
 No guardes la contrasena en `.env`, `auth.http` ni en el historial compartido del shell. Para un equipo real, el siguiente paso es implementar invitaciones o restablecimiento de contrasena con enlaces de un solo uso enviados por correo.
 
+### Perfil completo de empresa
+
+La migracion de perfil agrega datos fiscales, direccion estructurada y campos de contacto para las empresas existentes. Es aditiva: no elimina datos ni altera documentos, que ya se relacionan por `documents.client_id`.
+
+```bash
+pnpm db:apply:company-profile
+```
+
+La consulta de codigo postal usa Zippopotam.us con cache de 24 horas para sugerir estado y ciudad. La EKEY se registra solo como referencia; no cargues llaves privadas ni contrasenas sin implementar almacenamiento cifrado.
+
 ## Verificacion
 
 ```bash
