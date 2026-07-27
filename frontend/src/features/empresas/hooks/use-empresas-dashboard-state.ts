@@ -1178,6 +1178,39 @@ export function useEmpresasDashboardState() {
     }
   };
 
+  const updateTemplateScheduledMonths = async (
+    template: ActivityTemplate,
+    scheduledMonths: number[],
+  ) => {
+    if (!scheduledMonths.length) {
+      toast.warning("Selecciona al menos un mes para la actividad.");
+      return false;
+    }
+    try {
+      const updated = await backendFetch<DbTemplateRow>(
+        `/templates/${template.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scheduledMonths }),
+        },
+      );
+      const normalized = normalizeTemplate(updated);
+      setTemplates((current) =>
+        current.map((item) => (item.id === normalized.id ? normalized : item)),
+      );
+      toast.success("Periodicidad de la actividad actualizada.");
+      return true;
+    } catch (error) {
+      toast.error(
+        `No se pudo actualizar periodicidad: ${
+          error instanceof Error ? error.message : "Error desconocido"
+        }`,
+      );
+      return false;
+    }
+  };
+
   const onCreateClient = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = newClientName.trim();
@@ -1454,6 +1487,7 @@ export function useEmpresasDashboardState() {
     onCreateTemplate,
     toggleTemplateActive,
     updateTemplateWeight,
+    updateTemplateScheduledMonths,
 
     loadData,
   };

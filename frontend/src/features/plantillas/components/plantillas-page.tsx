@@ -22,8 +22,18 @@ const MONTHS = [
 export function PlantillasPage() {
   const state = useEmpresasDashboardState();
   const [activityAreaId, setActivityAreaId] = useState<string | null>(null);
+  const [managedAreaId, setManagedAreaId] = useState<string | null>(null);
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(
+    null,
+  );
+  const [editingMonths, setEditingMonths] = useState<number[]>([]);
   const selectedArea =
     state.areas.find((area) => area.id === activityAreaId) ?? null;
+  const managedArea =
+    state.areas.find((area) => area.id === managedAreaId) ?? null;
+  const managedTemplates = state.templates
+    .filter((template) => template.area === managedArea?.name)
+    .sort((left, right) => left.displayOrder - right.displayOrder);
 
   const openActivityModal = (areaId: string) => {
     state.setNewTemplateAreaId(areaId);
@@ -32,6 +42,26 @@ export function PlantillasPage() {
 
   const submitActivity = async (event: React.FormEvent<HTMLFormElement>) => {
     if (await state.onCreateTemplate(event)) setActivityAreaId(null);
+  };
+
+  const startEditingSchedule = (template: (typeof state.templates)[number]) => {
+    setEditingTemplateId(template.id);
+    setEditingMonths(template.scheduledMonths);
+  };
+
+  const saveSchedule = async (template: (typeof state.templates)[number]) => {
+    if (await state.updateTemplateScheduledMonths(template, editingMonths)) {
+      setEditingTemplateId(null);
+      setEditingMonths([]);
+    }
+  };
+
+  const toggleEditingMonth = (month: number) => {
+    setEditingMonths((current) =>
+      current.includes(month)
+        ? current.filter((item) => item !== month)
+        : [...current, month].sort((left, right) => left - right),
+    );
   };
 
   return (
@@ -105,14 +135,23 @@ export function PlantillasPage() {
                         <td className="px-4 py-3">{activeTemplates.length}</td>
                         <td className="px-4 py-3">{totalWeight.toFixed(1)}%</td>
                         <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            disabled={!area.isActive}
-                            onClick={() => openActivityModal(area.id)}
-                            className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-xs font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            Agregar actividad
-                          </button>
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setManagedAreaId(area.id)}
+                              className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-xs font-medium hover:bg-gray-50"
+                            >
+                              Ver actividades
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!area.isActive}
+                              onClick={() => openActivityModal(area.id)}
+                              className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-xs font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              Agregar actividad
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -232,6 +271,123 @@ export function PlantillasPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+      {managedArea ? (
+        <div className="fixed inset-0 z-[90] overflow-y-auto bg-[#10182885] p-4 backdrop-blur-[2px]">
+          <div className="mx-auto mt-[7vh] w-[min(760px,100%)] rounded-2xl border border-[var(--line)] bg-white shadow-[0_22px_40px_rgba(16,24,40,0.35)]">
+            <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4">
+              <div>
+                <p className="status-pill text-[10px] text-[var(--foreground-soft)]">
+                  {managedArea.name}
+                </p>
+                <h3 className="display-title text-xl font-semibold">
+                  Actividades y periodicidad
+                </h3>
+                <p className="mt-1 text-xs text-[var(--foreground-soft)]">
+                  Los cambios se aplican a empresas nuevas; el historial
+                  existente no se modifica.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setManagedAreaId(null);
+                  setEditingTemplateId(null);
+                }}
+                className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-xs font-medium"
+              >
+                Cerrar
+              </button>
+            </div>
+            <div className="grid max-h-[70vh] gap-3 overflow-y-auto p-5">
+              {managedTemplates.length ? (
+                managedTemplates.map((template) => {
+                  const isEditing = editingTemplateId === template.id;
+                  return (
+                    <article
+                      key={template.id}
+                      className="rounded-xl border border-[var(--line)] bg-[#fbfdff] p-4"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <h4 className="font-semibold text-gray-800">
+                            {template.name}
+                          </h4>
+                          <p className="mt-1 text-xs text-[var(--foreground-soft)]">
+                            Peso {template.defaultWeight}% ·{" "}
+                            {template.isActive ? "Activa" : "Inactiva"}
+                          </p>
+                          <p className="mt-1 text-xs text-[var(--foreground-soft)]">
+                            {template.scheduledMonths.length === 12
+                              ? "Mensual"
+                              : template.scheduledMonths
+                                  .map((month) => MONTHS[month - 1])
+                                  .join(", ")}
+                          </p>
+                        </div>
+                        {!isEditing ? (
+                          <button
+                            type="button"
+                            onClick={() => startEditingSchedule(template)}
+                            className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-xs font-medium hover:bg-white"
+                          >
+                            Editar periodicidad
+                          </button>
+                        ) : null}
+                      </div>
+                      {isEditing ? (
+                        <div className="mt-4 border-t border-[var(--line)] pt-4">
+                          <p className="text-xs font-medium text-[var(--foreground-soft)]">
+                            Meses aplicables
+                          </p>
+                          <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                            {MONTHS.map((label, index) => {
+                              const month = index + 1;
+                              const selected = editingMonths.includes(month);
+                              return (
+                                <label
+                                  key={month}
+                                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2 py-1.5 text-xs ${selected ? "border-[var(--accent)] bg-blue-50 text-blue-800" : "border-[var(--line)] text-[var(--foreground-soft)]"}`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selected}
+                                    onChange={() => toggleEditingMonth(month)}
+                                  />
+                                  {label}
+                                </label>
+                              );
+                            })}
+                          </div>
+                          <div className="mt-4 flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setEditingTemplateId(null)}
+                              className="rounded-lg border border-[var(--line)] px-3 py-1.5 text-xs font-medium"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void saveSchedule(template)}
+                              className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white"
+                            >
+                              Guardar periodicidad
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                })
+              ) : (
+                <p className="py-8 text-center text-sm text-[var(--foreground-soft)]">
+                  Esta area aun no tiene actividades.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       ) : null}

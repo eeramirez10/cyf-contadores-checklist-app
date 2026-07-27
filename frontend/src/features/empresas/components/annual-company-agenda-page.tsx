@@ -24,6 +24,12 @@ type AgendaMonth = {
 type AnnualAgenda = {
   company: { id: string; name: string };
   year: number;
+  areas: {
+    name: string;
+    expectedCount: number;
+    completedCount: number;
+    progress: number | null;
+  }[];
   months: AgendaMonth[];
 };
 
@@ -277,6 +283,60 @@ export function AnnualCompanyAgendaPage({
             );
           })}
         </div>
+      </article>
+
+      <article className="surface rounded-3xl p-5 sm:p-6">
+        <div className="mb-4">
+          <h2 className="display-title text-xl font-semibold">
+            Avance acumulado por departamento
+          </h2>
+          <p className="mt-1 text-sm text-[var(--foreground-soft)]">
+            Calculado con las actividades exigibles transcurridas en {year}.
+          </p>
+        </div>
+        {agenda.areas.length ? (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {agenda.areas.map((area) => {
+              const progress = area.progress ?? 0;
+              const tone = progressTone(progress, "CURRENT");
+              return (
+                <article
+                  key={area.name}
+                  className="rounded-2xl border border-[var(--line)] bg-white p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-semibold text-gray-800">
+                        {area.name}
+                      </h3>
+                      <p className="mt-1 text-xs text-[var(--foreground-soft)]">
+                        {area.completedCount}/{area.expectedCount} actividades
+                      </p>
+                    </div>
+                    <span className="text-lg font-bold" style={{ color: tone }}>
+                      {area.progress === null
+                        ? "-"
+                        : `${area.progress.toFixed(1)}%`}
+                    </span>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${Math.max(0, Math.min(100, progress))}%`,
+                        backgroundColor: tone,
+                      }}
+                    />
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--foreground-soft)]">
+            No hay actividades exigibles para este año.
+          </p>
+        )}
       </article>
     </section>
   );

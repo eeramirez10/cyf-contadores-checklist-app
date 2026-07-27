@@ -267,10 +267,50 @@ export class CompaniesService {
       current.push(entry);
       entriesByMonth.set(entry.month, current);
     }
+    const areaSummary = new Map<
+      string,
+      {
+        totalWeight: number;
+        completedWeight: number;
+        expectedCount: number;
+        completedCount: number;
+      }
+    >();
+    for (const entry of entries) {
+      const activity = activitiesByTemplateId.get(entry.template_id);
+      const area = entry.area_snapshot ?? activity?.area ?? 'Sin area';
+      const weight = Number(entry.weight_snapshot ?? activity?.weight ?? 0);
+      const summary = areaSummary.get(area) ?? {
+        totalWeight: 0,
+        completedWeight: 0,
+        expectedCount: 0,
+        completedCount: 0,
+      };
+      summary.totalWeight += weight;
+      summary.expectedCount += 1;
+      if (entry.completed) {
+        summary.completedWeight += weight;
+        summary.completedCount += 1;
+      }
+      areaSummary.set(area, summary);
+    }
 
     return {
       company: { id: client.id, name: client.name },
       year,
+      areas: [...areaSummary.entries()]
+        .map(([name, summary]) => ({
+          name,
+          expectedCount: summary.expectedCount,
+          completedCount: summary.completedCount,
+          progress:
+            summary.totalWeight > 0
+              ? Math.round(
+                  (summary.completedWeight / summary.totalWeight) * 1000,
+                ) / 10
+              : null,
+        }))
+        .sort((left, right) => left.name.localeCompare(right.name)),
       months: months.map((month) => {
         const period =
           month > currentMonth

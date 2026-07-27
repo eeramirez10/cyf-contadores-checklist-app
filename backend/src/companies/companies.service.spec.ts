@@ -86,5 +86,13 @@ describe('CompaniesService annual agenda', () => {
         }),
       ],
     });
+    expect(agenda.areas).toEqual([
+      {
+        name: 'Fiscal',
+        expectedCount: 2,
+        completedCount: 1,
+        progress: 50,
+      },
+    ]);
   });
 });
