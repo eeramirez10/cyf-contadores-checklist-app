@@ -1108,15 +1108,15 @@ export function useEmpresasDashboardState() {
     const trimmedName = newClientName.trim();
     if (!trimmedName) {
       toast.warning("Escribe nombre de la empresa.");
-      return;
+      return false;
     }
     if (!assignableMemberValue) {
       toast.warning("Selecciona contador.");
-      return;
+      return false;
     }
     if (!selectedTemplateIds.length) {
       toast.warning("Selecciona al menos una actividad estandar.");
-      return;
+      return false;
     }
     if (
       !newClientDetails.legalName.trim() ||
@@ -1124,7 +1124,7 @@ export function useEmpresasDashboardState() {
       !newClientDetails.taxRegime
     ) {
       toast.warning("Completa razon social, RFC y regimen fiscal.");
-      return;
+      return false;
     }
     if (
       !newClientDetails.street.trim() ||
@@ -1136,7 +1136,7 @@ export function useEmpresasDashboardState() {
       toast.warning(
         "Completa la direccion y un codigo postal de cinco digitos.",
       );
-      return;
+      return false;
     }
     if (
       !newClientContacts.length ||
@@ -1207,6 +1207,7 @@ export function useEmpresasDashboardState() {
       }
       await loadData();
       toast.success("Empresa creada con checklist base.");
+      return true;
     } catch (error) {
       const selectedMemberName =
         usersById.get(assignableMemberValue)?.name ??
@@ -1221,6 +1222,7 @@ export function useEmpresasDashboardState() {
       } else {
         toast.error(`No se pudo crear empresa: ${errorMessage}`);
       }
+      return false;
     }
   };
 

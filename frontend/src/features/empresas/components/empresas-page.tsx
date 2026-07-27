@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { CompanyRegistrationModal } from "@/features/empresas/components/company-registration-modal";
 import { EmpresaChecklistContent } from "@/features/empresas/components/empresa-checklist-content";
 import { EmpresasPageShell } from "@/features/empresas/components/empresas-page-shell";
 import { useEmpresasDashboardState } from "@/features/empresas/hooks/use-empresas-dashboard-state";
@@ -11,6 +13,7 @@ import { useIndicatorsSocket } from "@/features/indicadores/hooks/use-indicators
 
 export function EmpresasPage() {
   const state = useEmpresasDashboardState();
+  const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
   useIndicatorsSocket(
     state.clientsVisibleToCurrent.map((client) => client.id),
     state.month,
@@ -33,6 +36,13 @@ export function EmpresasPage() {
             <span className="status-pill rounded-full border border-[var(--line)] bg-white px-2 py-1 text-[10px] text-[var(--foreground-soft)]">
               {state.clientsTableRows.length} empresas visibles
             </span>
+            <button
+              type="button"
+              onClick={() => setIsCompanyModalOpen(true)}
+              className="rounded-xl bg-[linear-gradient(180deg,#1f83cc_0%,#0f6cb4_100%)] px-4 py-2 text-sm font-medium text-white"
+            >
+              Alta de empresa
+            </button>
           </div>
 
           <div className="mt-4 grid gap-3 md:grid-cols-[1fr]">
@@ -307,6 +317,12 @@ export function EmpresasPage() {
             </div>
           </div>
         </div>
+      ) : null}
+      {isCompanyModalOpen ? (
+        <CompanyRegistrationModal
+          state={state}
+          onClose={() => setIsCompanyModalOpen(false)}
+        />
       ) : null}
     </EmpresasPageShell>
   );
