@@ -22,7 +22,7 @@ export class CatalogService {
           ? { OR: [{ id: profileId }, { id: { in: memberIds ?? [] } }] }
           : { OR: [{ id: profileId }, { id: { in: [] } }] };
 
-    const [profiles, groups, templates, clients, activities, entries] =
+    const [profiles, groups, areas, templates, clients, activities, entries] =
       await Promise.all([
         this.prisma.profiles.findMany({
           where: profileWhere,
@@ -38,6 +38,10 @@ export class CatalogService {
         this.prisma.groups.findMany({
           where: role === user_role.ADMIN ? {} : { leader_id: profileId },
           select: { id: true, name: true, leader_id: true },
+          orderBy: { name: 'asc' },
+        }),
+        this.prisma.activity_areas.findMany({
+          select: { id: true, name: true, is_active: true, created_at: true },
           orderBy: { name: 'asc' },
         }),
         this.prisma.activity_templates.findMany({
@@ -92,6 +96,6 @@ export class CatalogService {
           orderBy: { updated_at: 'desc' },
         }),
       ]);
-    return { profiles, groups, templates, clients, activities, entries };
+    return { profiles, groups, areas, templates, clients, activities, entries };
   }
 }

@@ -513,14 +513,26 @@ model activity_templates {
   id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name              String              @unique
   area              String
+  area_id           String?             @db.Uuid
   default_weight    Decimal             @db.Decimal(5, 2)
   display_order     Int                 @default(0)
   is_active         Boolean             @default(true)
   created_by        String?             @default(dbgenerated("auth.uid()")) @db.Uuid
   created_at        DateTime            @default(now()) @db.Timestamptz(6)
   profiles          profiles?           @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  activity_areas    activity_areas?     @relation(fields: [area_id], references: [id], onUpdate: NoAction)
   checklist_entries checklist_entries[]
   client_activities client_activities[]
+
+  @@schema("public")
+}
+
+model activity_areas {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name               String               @unique
+  is_active          Boolean              @default(true)
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  activity_templates activity_templates[]
 
   @@schema("public")
 }

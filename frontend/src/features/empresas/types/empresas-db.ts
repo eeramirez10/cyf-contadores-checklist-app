@@ -14,6 +14,12 @@ export type DbGroupRow = {
   leader_id: string | null;
 };
 
+export type DbActivityAreaRow = {
+  id: string;
+  name: string;
+  is_active: boolean;
+};
+
 export type DbTemplateRow = {
   id: string;
   name: string;

@@ -41,6 +41,14 @@ pnpm db:apply:company-profile
 
 La consulta de codigo postal usa Zippopotam.us con cache de 24 horas para sugerir estado y ciudad. La EKEY se registra solo como referencia; no cargues llaves privadas ni contrasenas sin implementar almacenamiento cifrado.
 
+### Areas de actividades
+
+Las areas ahora son un catalogo independiente de las actividades. La migracion crea y asigna automaticamente las areas existentes antes de habilitar nuevas actividades por area.
+
+```bash
+pnpm db:apply:activity-areas
+```
+
 ## Verificacion
 
 ```bash

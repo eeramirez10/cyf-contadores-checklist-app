@@ -7,7 +7,7 @@ import { PrismaService } from '../database/prisma.service';
 
 type CreateTemplateInput = {
   name: string;
-  area: string;
+  areaId: string;
   defaultWeight: number;
 };
 
@@ -23,13 +23,22 @@ export class TemplatesService {
   async create(actorRole: string, actorId: string, input: CreateTemplateInput) {
     this.requireAdmin(actorRole);
 
+    const area = await this.prisma.activity_areas.findUnique({
+      where: { id: input.areaId },
+      select: { id: true, name: true, is_active: true },
+    });
+    if (!area || !area.is_active) {
+      throw new NotFoundException('Area no encontrada o inactiva');
+    }
+
     const highestOrder = await this.prisma.activity_templates.aggregate({
       _max: { display_order: true },
     });
     return this.prisma.activity_templates.create({
       data: {
         name: input.name.trim(),
-        area: input.area,
+        area: area.name,
+        area_id: area.id,
         default_weight: input.defaultWeight,
         display_order: (highestOrder._max.display_order ?? 0) + 1,
         created_by: actorId,
@@ -43,6 +52,18 @@ export class TemplatesService {
         is_active: true,
         created_by: true,
       },
+    });
+  }
+
+  async createArea(actorRole: string, name: string) {
+    this.requireAdmin(actorRole);
+    const normalizedName = name.trim();
+    if (!normalizedName) {
+      throw new NotFoundException('Nombre de area requerido');
+    }
+    return this.prisma.activity_areas.create({
+      data: { name: normalizedName },
+      select: { id: true, name: true, is_active: true, created_at: true },
     });
   }
 

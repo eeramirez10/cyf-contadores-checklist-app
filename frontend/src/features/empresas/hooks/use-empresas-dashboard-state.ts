@@ -12,6 +12,7 @@ import {
   normalizeUser,
 } from "@/features/empresas/services/empresas-mappers";
 import type {
+  DbActivityAreaRow,
   DbChecklistRow,
   DbClientActivityRow,
   DbClientRow,
@@ -29,8 +30,8 @@ import { backendFetch } from "@/lib/backend-auth";
 import { calculateProgress } from "@/lib/progress";
 import { useAuth } from "@/features/auth/components/auth-provider";
 import type {
+  ActivityArea,
   ActivityTemplate,
-  Area,
   ChecklistEntry,
   Client,
   ClientActivity,
@@ -53,6 +54,7 @@ type SortDirection = "asc" | "desc";
 type DashboardCatalog = {
   profiles: DbProfileRow[];
   groups: DbGroupRow[];
+  areas: DbActivityAreaRow[];
   templates: DbTemplateRow[];
   clients: DbClientRow[];
   activities: DbClientActivityRow[];
@@ -96,6 +98,7 @@ export function useEmpresasDashboardState() {
   const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [templates, setTemplates] = useState<ActivityTemplate[]>([]);
+  const [areas, setAreas] = useState<ActivityArea[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [clientActivities, setClientActivities] = useState<ClientActivity[]>(
     [],
@@ -132,7 +135,8 @@ export function useEmpresasDashboardState() {
   const [postalLookupLoading, setPostalLookupLoading] = useState(false);
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
   const [newTemplateName, setNewTemplateName] = useState<string>("");
-  const [newTemplateArea, setNewTemplateArea] = useState<Area>("VENTAS");
+  const [newTemplateAreaId, setNewTemplateAreaId] = useState<string>("");
+  const [newAreaName, setNewAreaName] = useState<string>("");
   const [newTemplateWeight, setNewTemplateWeight] = useState<number>(10);
   const [memberSearchQuery, setMemberSearchQuery] = useState<string>("");
   const [memberPage, setMemberPage] = useState<number>(1);
@@ -197,6 +201,13 @@ export function useEmpresasDashboardState() {
         await backendFetch<DashboardCatalog>("/catalog/dashboard");
       setUsers(catalog.profiles.map(normalizeUser));
       setGroups(catalog.groups.map(normalizeGroup));
+      setAreas(
+        catalog.areas.map((area) => ({
+          id: area.id,
+          name: area.name,
+          isActive: area.is_active,
+        })),
+      );
       setTemplates(catalog.templates.map(normalizeTemplate));
       setClients(catalog.clients.map(normalizeClient));
       setClientActivities(catalog.activities.map(normalizeClientActivity));
@@ -1024,6 +1035,10 @@ export function useEmpresasDashboardState() {
       toast.warning("Escribe nombre para actividad estandar.");
       return;
     }
+    if (!newTemplateAreaId) {
+      toast.warning("Crea o selecciona un area antes de agregar actividades.");
+      return;
+    }
     if (newTemplateWeight <= 0 || newTemplateWeight > 100) {
       toast.warning("El peso debe estar entre 1 y 100.");
       return;
@@ -1034,12 +1049,13 @@ export function useEmpresasDashboardState() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: trimmedName,
-          area: newTemplateArea,
+          areaId: newTemplateAreaId,
           defaultWeight: newTemplateWeight,
         }),
       });
       setTemplates((current) => [...current, normalizeTemplate(data)]);
       setNewTemplateName("");
+      setNewTemplateAreaId("");
       setNewTemplateWeight(10);
       toast.success("Actividad estandar creada.");
     } catch (error) {
@@ -1047,6 +1063,34 @@ export function useEmpresasDashboardState() {
         `No se pudo crear actividad estandar: ${
           error instanceof Error ? error.message : "Error desconocido"
         }`,
+      );
+    }
+  };
+
+  const onCreateArea = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const name = newAreaName.trim();
+    if (!name) {
+      toast.warning("Escribe el nombre del area.");
+      return;
+    }
+    try {
+      const area = await backendFetch<ActivityArea>("/templates/areas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      setAreas((current) =>
+        [...current, area].sort((left, right) =>
+          left.name.localeCompare(right.name),
+        ),
+      );
+      setNewTemplateAreaId(area.id);
+      setNewAreaName("");
+      toast.success("Area creada. Ya puedes agregar actividades.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo crear el area.",
       );
     }
   };
@@ -1364,10 +1408,14 @@ export function useEmpresasDashboardState() {
     onCreateClient,
 
     templates,
+    areas,
     newTemplateName,
     setNewTemplateName,
-    newTemplateArea,
-    setNewTemplateArea,
+    newTemplateAreaId,
+    setNewTemplateAreaId,
+    newAreaName,
+    setNewAreaName,
+    onCreateArea,
     newTemplateWeight,
     setNewTemplateWeight,
     onCreateTemplate,

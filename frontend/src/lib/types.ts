@@ -1,4 +1,4 @@
-export type Area = "VENTAS" | "PRODUCCION";
+export type Area = string;
 
 export type UserRole = "ADMIN" | "LEADER" | "MEMBER";
 
@@ -6,6 +6,12 @@ export type Group = {
   id: string;
   name: string;
   leaderId: string;
+};
+
+export type ActivityArea = {
+  id: string;
+  name: string;
+  isActive: boolean;
 };
 
 export type User = {

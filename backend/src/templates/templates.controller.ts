@@ -1,7 +1,6 @@
 import { Body, Controller, Param, Patch, Post, Req } from '@nestjs/common';
 import {
   IsBoolean,
-  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -17,13 +16,19 @@ class CreateTemplateDto {
   @MinLength(1)
   name: string;
 
-  @IsIn(['VENTAS', 'PRODUCCION'])
-  area: 'VENTAS' | 'PRODUCCION';
+  @IsString()
+  areaId: string;
 
   @IsNumber()
   @Min(1)
   @Max(100)
   defaultWeight: number;
+}
+
+class CreateAreaDto {
+  @IsString()
+  @MinLength(1)
+  name: string;
 }
 
 class UpdateTemplateDto {
@@ -47,6 +52,11 @@ export class TemplatesController {
   @Post()
   create(@Body() dto: CreateTemplateDto, @Req() request: UserRequest) {
     return this.templates.create(request.user.role, request.user.id, dto);
+  }
+
+  @Post('areas')
+  createArea(@Body() dto: CreateAreaDto, @Req() request: UserRequest) {
+    return this.templates.createArea(request.user.role, dto.name);
   }
 
   @Patch(':id')
