@@ -57,9 +57,14 @@ export class AuthService {
   }
 
   async validateAccessToken(token: string) {
-    const payload = await this.jwtService.verifyAsync<AccessPayload>(token, {
-      secret: this.configService.getOrThrow('JWT_ACCESS_SECRET'),
-    });
+    let payload: AccessPayload;
+    try {
+      payload = await this.jwtService.verifyAsync<AccessPayload>(token, {
+        secret: this.configService.getOrThrow('JWT_ACCESS_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException('Token expirado o invalido');
+    }
     const profile = await this.authRepository.findProfileById(payload.sub);
     if (!profile?.is_active) throw new UnauthorizedException();
     return {

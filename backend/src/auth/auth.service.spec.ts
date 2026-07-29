@@ -11,8 +11,9 @@ describe('AuthService', () => {
   let authRepository: {
     createSession: jest.Mock;
     findProfileByEmail: jest.Mock;
+    findProfileById: jest.Mock;
   };
-  let jwtService: { signAsync: jest.Mock };
+  let jwtService: { signAsync: jest.Mock; verifyAsync: jest.Mock };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -23,11 +24,12 @@ describe('AuthService', () => {
           useValue: {
             createSession: jest.fn(),
             findProfileByEmail: jest.fn(),
+            findProfileById: jest.fn(),
           },
         },
         {
           provide: JwtService,
-          useValue: { signAsync: jest.fn() },
+          useValue: { signAsync: jest.fn(), verifyAsync: jest.fn() },
         },
         {
           provide: ConfigService,
@@ -81,5 +83,15 @@ describe('AuthService', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException);
 
     expect(authRepository.createSession).not.toHaveBeenCalled();
+  });
+
+  it('converts an expired access token into an unauthorized response', async () => {
+    jwtService.verifyAsync.mockRejectedValue(new Error('jwt expired'));
+
+    await expect(
+      authService.validateAccessToken('expired-access-token'),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(authRepository.findProfileById).not.toHaveBeenCalled();
   });
 });
